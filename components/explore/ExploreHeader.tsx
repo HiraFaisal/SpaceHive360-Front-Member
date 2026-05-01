@@ -2,17 +2,19 @@
 
 import { ChevronDown, LayoutGrid, List, Sparkles } from "lucide-react"
 
-export function ExploreHeader() {
+export function ExploreHeader({ count, city }: { count: number; city?: string | null }) {
   return (
     <div className="mb-8">
         <div className="flex items-center gap-2 text-xs text-gray-400 uppercase font-bold tracking-wider mb-2">
             <span>Home</span>
             <span>/</span>
-            <span className="text-blue-600">New York Explore</span>
+            <span className="text-blue-600">{city || 'Global'} Explore</span>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
-                <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">124 Workspaces in New York</h1>
+                <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
+                    {count} Workspaces {city ? `in ${city}` : 'Available'}
+                </h1>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Sparkles className="w-4 h-4 text-blue-500" />
                     <p>AI-powered recommendations based on your preferences</p>

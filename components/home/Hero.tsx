@@ -1,20 +1,54 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Search, MapPin, Users, Sparkles } from "lucide-react"
+import { Search, MapPin, Users, Sparkles, LayoutGrid } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { memberApi } from "@/lib/api"
+import CustomSelect from "@/components/ui/CustomSelect"
 
 export function Hero() {
   const router = useRouter()
-  const [location, setLocation] = useState("New York, NY")
-  const [type, setType] = useState("Hot Desk")
+  const [cities, setCities] = useState<{value: string, label: string}[]>([])
+  const [categories, setCategories] = useState<{value: string, label: string}[]>([])
+  const [selectedCity, setSelectedCity] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [citiesRes, categoriesRes] = await Promise.all([
+          memberApi.getCities(),
+          memberApi.getCategories()
+        ]);
+        
+        const cityOptions = (citiesRes.data.data || []).map(c => ({ value: c, label: c }))
+        const catOptions = (categoriesRes.data.data || []).map(c => ({ value: c, label: c }))
+        
+        setCities(cityOptions)
+        setCategories(catOptions)
+        
+        if (cityOptions.length > 0) setSelectedCity(cityOptions[0].value)
+        if (catOptions.length > 0) setSelectedCategory(catOptions[0].value)
+      } catch (error) {
+        console.error("Failed to fetch search data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   const handleSearch = () => {
     const params = new URLSearchParams()
-    if (location) params.append("location", location)
-    if (type) params.append("type", type)
+    if (selectedCity) params.append("city", selectedCity)
+    if (selectedCategory) params.append("category", selectedCategory)
     router.push(`/explore?${params.toString()}`)
+  }
+
+  const handleBrowse = () => {
+    router.push('/explore')
   }
 
   return (
@@ -39,7 +73,7 @@ export function Hero() {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold tracking-wide uppercase mb-6 shadow-sm">
                 <Sparkles className="w-3 h-3" />
-                <span>AI-Powered Workspace Finder</span>
+                <span>Premium Workspace Ecosystem</span>
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-[1.05] tracking-tight mb-8">
               Your <br/>
@@ -49,46 +83,47 @@ export function Hero() {
               </span>
             </h1>
             <p className="text-lg text-gray-600/90 mb-10 leading-relaxed max-w-lg font-medium">
-              The ultimate 360° ecosystem for flexible teams. Discover, book, and thrive in premium coworking spaces curated by AI.
+              Discover, book, and thrive in premium coworking spaces. Find the perfect spot for your next big idea.
             </p>
 
-            {/* AI Command Center Search Bar */}
-            <div className="bg-white p-2 rounded-2xl flex flex-col sm:flex-row gap-2 max-w-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 relative z-20">
-              <div className="flex-1 flex items-center px-4 py-3 border-b sm:border-b-0 sm:border-r border-gray-100">
-                <MapPin className="text-blue-600 w-5 h-5 mr-3 flex-shrink-0" />
-                <input 
-                  type="text" 
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Where do you want to work?" 
-                  className="w-full outline-none text-gray-900 placeholder-gray-400 text-sm font-medium bg-transparent"
-                />
-              </div>
-              <div className="flex-1 flex items-center px-4 py-3">
-                <Users className="text-blue-600 w-5 h-5 mr-3 flex-shrink-0" />
-                 <div className="relative w-full">
-                    <select 
-                      value={type}
-                      onChange={(e) => setType(e.target.value)}
-                      className="w-full outline-none text-gray-900 bg-transparent text-sm font-medium cursor-pointer appearance-none py-1"
+            {/* Search Bar Container */}
+            <div className="flex flex-col gap-4 max-w-xl">
+                <div className="bg-white p-2 rounded-2xl flex flex-col sm:flex-row gap-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 relative z-20">
+                    <CustomSelect 
+                        options={cities}
+                        value={selectedCity}
+                        onChange={setSelectedCity}
+                        placeholder={loading ? "Loading..." : "Select City"}
+                        isLoading={loading}
+                        icon={<MapPin className="w-5 h-5" />}
+                    />
+                    <CustomSelect 
+                        options={categories}
+                        value={selectedCategory}
+                        onChange={setSelectedCategory}
+                        placeholder={loading ? "Loading..." : "Select Category"}
+                        isLoading={loading}
+                        icon={<Users className="w-5 h-5" />}
+                    />
+                    
+                    <button 
+                        onClick={handleSearch}
+                        disabled={loading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 ml-2"
                     >
-                        <option value="Hot Desk">Hot Desk</option>
-                        <option value="Private Office">Private Office</option>
-                        <option value="Meeting Room">Meeting Room</option>
-                    </select>
-                    {/* Custom chevron for better UI */}
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
-                 </div>
-              </div>
-              <button 
-                onClick={handleSearch}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 active:scale-95"
-              >
-                <Search className="w-4 h-4" />
-                <span>Find</span>
-              </button>
+                        <Search className="w-4 h-4" />
+                        <span>Search</span>
+                    </button>
+                </div>
+
+                {/* Browse Button */}
+                <button 
+                    onClick={handleBrowse}
+                    className="flex items-center justify-center gap-2 w-fit px-6 py-3 rounded-xl bg-white border border-gray-100 text-gray-900 font-bold shadow-sm hover:shadow-md transition-all group"
+                >
+                    <LayoutGrid className="w-4 h-4 text-blue-600 group-hover:rotate-12 transition-transform" />
+                    <span>Browse All Spaces</span>
+                </button>
             </div>
           </motion.div>
 
@@ -99,21 +134,17 @@ export function Hero() {
              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
              className="relative hidden lg:block h-[600px] w-full"
           >
-            {/* Background Decorative Blobs */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-blue-100/50 rounded-full blur-[100px] -z-10" />
 
-            {/* Image 1: Main Large Image (Back/Left) */}
             <div className="absolute top-0 left-4 w-2/3 h-3/4 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white transform -rotate-3 hover:rotate-0 transition-transform duration-700 z-10">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2301&auto=format&fit=crop')] bg-cover bg-center" />
                 <div className="absolute inset-0 bg-black/10" />
             </div>
 
-            {/* Image 2: Secondary Image (Front/Right) */}
             <div className="absolute bottom-12 right-0 w-3/5 h-3/5 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white transform rotate-6 hover:rotate-0 transition-transform duration-700 z-20">
                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1604328698692-f76ea9498e76?q=80&w=2340&auto=format&fit=crop')] bg-cover bg-center" />
             </div>
 
-            {/* Floating "Booking Confirmed" Card (Overlapping both) */}
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

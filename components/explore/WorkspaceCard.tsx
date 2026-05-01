@@ -3,6 +3,7 @@
 import { Heart, Star, MapPin, Wifi, Coffee, DoorClosed } from "lucide-react"
 import { Workspace } from "@/data/workspaces"
 import { motion } from "framer-motion"
+import ImageWithFallback from "@/components/ui/ImageWithFallback"
 
 export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; onClick?: () => void }) {
   return (
@@ -15,10 +16,11 @@ export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; on
     >
       <div className="relative h-64 p-3 pb-0">
         <div className="w-full h-full rounded-[1.5rem] overflow-hidden relative">
-            <img 
+            <ImageWithFallback 
               src={workspace.image} 
               alt={workspace.title} 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+              fill
+              className="group-hover:scale-105 transition-transform duration-700" 
             />
             <div className="absolute inset-0 bg-black/5" />
         </div>

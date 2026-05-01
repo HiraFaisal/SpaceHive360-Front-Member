@@ -5,46 +5,80 @@ import { FilterSidebar } from "@/components/explore/FilterSidebar"
 import { ExploreHeader } from "@/components/explore/ExploreHeader"
 import { WorkspaceCard } from "@/components/explore/WorkspaceCard"
 import { WorkspaceDrawer } from "@/components/explore/WorkspaceDrawer"
-import { workspaces, Workspace } from "@/data/workspaces"
 import { useSearchParams } from "next/navigation"
-import { useMemo, Suspense, useState } from "react"
+import { useMemo, Suspense, useState, useEffect } from "react"
 import { AnimatePresence } from "framer-motion"
+import { memberApi } from "@/lib/api"
 
 function ExploreContent() {
   const searchParams = useSearchParams()
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null)
+  const [selectedWorkspace, setSelectedWorkspace] = useState<any | null>(null)
+  const [plans, setPlans] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filteredWorkspaces = useMemo(() => {
-    let result = [...workspaces]
+  const city = searchParams.get("city")
+  const category = searchParams.get("category")
 
-    // Location Filter
-    const location = searchParams.get("location")
-    if (location && location !== "New York, NY") {
-        result = result.filter(w => w.location.toLowerCase().includes(location.toLowerCase()) || w.title.toLowerCase().includes(location.toLowerCase()))
+  useEffect(() => {
+    async function fetchPlans() {
+      setLoading(true)
+      try {
+        const res = await memberApi.getPlans({ 
+          city: city || undefined, 
+          category: category || undefined 
+        })
+        const data = res.data.data;
+        // Merge memberships and bookings into one list for the UI
+        const allPlans = [
+            ...(data.memberships || []).map((p: any) => ({ ...p, type: 'Membership' })),
+            ...(data.bookings || []).map((p: any) => ({ ...p, type: 'Booking' }))
+        ]
+        setPlans(allPlans)
+      } catch (error) {
+        console.error("Failed to fetch plans:", error)
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchPlans()
+  }, [city, category])
 
-    // Type Filter
-    const type = searchParams.get("type")
-    if (type) {
-        const types = type.split(",")
-        result = result.filter(w => types.includes(w.type))
-    }
+  // Map API plan to UI Workspace format
+  const mappedPlans = useMemo(() => {
+    return plans.map(p => {
+        let images: string[] = []
+        let features: string[] = []
 
-    // Price Filter
-    const maxPrice = searchParams.get("maxPrice")
-    if (maxPrice) {
-        result = result.filter(w => w.price <= parseInt(maxPrice))
-    }
-    
-    // Amenities Filter
-    const amenities = searchParams.get("amenities")
-    if (amenities) {
-        const requiredAmenities = amenities.split(",")
-        result = result.filter(w => requiredAmenities.some(a => w.tags.some(t => t.toLowerCase().includes(a.toLowerCase()))))
-    }
+        try {
+            images = p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : []
+        } catch (e) {
+            console.error("Failed to parse images for plan:", p.recId, p.images)
+            images = []
+        }
 
-    return result
-  }, [searchParams])
+        try {
+            features = p.features ? (typeof p.features === 'string' ? JSON.parse(p.features) : p.features) : []
+        } catch (e) {
+            console.error("Failed to parse features for plan:", p.recId, p.features)
+            features = []
+        }
+
+        return {
+            id: p.recId,
+            title: p.name,
+            location: p.description || "Premium Location",
+            distance: "Nearby", // Mocked
+            price: p.price,
+            priceUnit: p.durationType || (p.type === 'Booking' ? 'hour' : 'day'),
+            image: Array.isArray(images) && images.length > 0 ? images[0] : null,
+            type: p.planCategory === 'membership' ? 'Membership Plan' : 'Booking Plan',
+            rating: 4.9,
+            reviews: 12,
+            tags: Array.isArray(features) ? features : [],
+            isAiRecommended: true
+        }
+    })
+  }, [plans])
 
   return (
     <>
@@ -52,21 +86,25 @@ function ExploreContent() {
             {/* Sidebar Filters - Sticky on Desktop with Card styling */}
             <aside className="lg:sticky lg:top-36 h-fit hidden lg:block w-72">
                 <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
-                    <FilterSidebar resultCount={filteredWorkspaces.length} />
+                    <FilterSidebar resultCount={mappedPlans.length} />
                 </div>
             </aside>
 
             {/* Main Content */}
             <div className="flex-1">
-                <ExploreHeader />
+                <ExploreHeader count={mappedPlans.length} city={city} />
                 
-                {filteredWorkspaces.length > 0 ? (
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full mb-4"></div>
+                        <p className="text-gray-500 font-medium">Searching for best spaces...</p>
+                    </div>
+                ) : mappedPlans.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                        {/* Render Workspace Cards */}
-                        {filteredWorkspaces.map(workspace => (
+                        {mappedPlans.map(workspace => (
                             <WorkspaceCard 
                                 key={workspace.id} 
-                                workspace={workspace} 
+                                workspace={workspace as any} 
                                 onClick={() => setSelectedWorkspace(workspace)}
                             />
                         ))}
@@ -99,7 +137,7 @@ function ExploreContent() {
         <AnimatePresence>
             {selectedWorkspace && (
                 <WorkspaceDrawer 
-                    workspace={selectedWorkspace} 
+                    workspace={selectedWorkspace as any} 
                     onClose={() => setSelectedWorkspace(null)} 
                 />
             )}

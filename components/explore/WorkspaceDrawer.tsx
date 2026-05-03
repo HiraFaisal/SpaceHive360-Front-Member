@@ -8,14 +8,17 @@ import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
-interface WorkspaceDrawerProps {
-  workspace: Workspace
-  onClose: () => void
-}
+import { useTracker } from "@/hooks/useTracker"
+import { useEffect } from "react"
 
 export function WorkspaceDrawer({ workspace, onClose }: WorkspaceDrawerProps) {
   const router = useRouter()
   const { isAuthenticated } = useAuth()
+  const { trackAction } = useTracker()
+
+  useEffect(() => {
+    trackAction(workspace.id, 'VIEW');
+  }, [workspace.id, trackAction]);
   
   return (
     <>
@@ -25,7 +28,7 @@ export function WorkspaceDrawer({ workspace, onClose }: WorkspaceDrawerProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60]"
       />
 
       {/* Drawer */}
@@ -34,7 +37,7 @@ export function WorkspaceDrawer({ workspace, onClose }: WorkspaceDrawerProps) {
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white z-50 shadow-2xl overflow-y-auto"
+        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white z-[70] shadow-2xl overflow-y-auto"
       >
         {/* Header Image */}
         <div className="relative h-60">
@@ -115,6 +118,7 @@ export function WorkspaceDrawer({ workspace, onClose }: WorkspaceDrawerProps) {
                 </Link>
                 <button 
                     onClick={() => {
+                        trackAction(workspace.id, 'BOOK');
                         const checkoutUrl = `/checkout?id=${workspace.id}`;
                         if (isAuthenticated) {
                             router.push(checkoutUrl);

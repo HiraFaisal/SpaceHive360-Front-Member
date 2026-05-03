@@ -7,6 +7,7 @@ interface AuthContextType {
   user: any | null
   login: (userData: any) => void
   logout: () => void
+  updateUser: (userData: any) => void
   isAuthenticated: boolean
 }
 
@@ -31,6 +32,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('memberUser', JSON.stringify(userData))
   }
 
+  const updateUser = (userData: any) => {
+    const updatedUser = { ...user, ...userData }
+    setUser(updatedUser)
+    localStorage.setItem('memberUser', JSON.stringify(updatedUser))
+  }
+
   const logout = () => {
     setUser(null)
     setIsAuthenticated(false)
@@ -39,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   )

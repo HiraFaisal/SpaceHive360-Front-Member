@@ -3,16 +3,19 @@
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/home/Navbar"
-import { memberApi, authApi, paymentApi } from "@/lib/api"
+import { memberApi, authApi, paymentApi, membershipApi } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
-import { motion } from "framer-motion"
-import { loadStripe } from "@stripe/stripe-js"
+import { motion, AnimatePresence } from "framer-motion"
 import { 
     CreditCard, MapPin, Calendar, Clock, 
     ArrowRight, Loader2, ShieldCheck, CheckCircle2,
-    User, Phone, Mail, Info
+    User, Phone, Mail, Info, Building2, Landmark, 
+    Hash, FileText, Upload, AlertCircle
 } from "lucide-react"
 import ImageWithFallback from "@/components/ui/ImageWithFallback"
+import DatePicker from "react-datepicker"
+import "react-datepicker/dist/react-datepicker.css"
+import { StatusModal } from "@/components/ui/StatusModal"
 
 export default function CheckoutPage() {
     const router = useRouter()
@@ -24,6 +27,49 @@ export default function CheckoutPage() {
     const [loading, setLoading] = useState(true)
     const [processing, setProcessing] = useState(false)
     const [phone, setPhone] = useState("")
+    
+    const [startDate, setStartDate] = useState<Date>(new Date())
+    const [paymentMethod, setPaymentMethod] = useState("Stripe") // Stripe or BankTransfer
+    
+    // Bank Transfer Details
+    const [bankDetails, setBankDetails] = useState({
+        accountTitle: "",
+        accountNumber: "",
+        ibanNumber: "",
+        bankName: ""
+    })
+    const [screenshot, setScreenshot] = useState<File | null>(null)
+    const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+
+    // Booking Specific State
+    const [bookingTimes, setBookingTimes] = useState<{ from: Date, to: Date }>({
+        from: new Date(),
+        to: new Date(new Date().getTime() + 60 * 60 * 1000) // Default +1 hour
+    })
+    const [isFullDay, setIsFullDay] = useState(false)
+    const [isRecurring, setIsRecurring] = useState(false)
+    const [recurrence, setRecurrence] = useState({
+        interval: 1,
+        endType: 'Never' as 'Never' | 'After' | 'On',
+        endOccurrences: 10,
+        endDate: new Date(new Date().setMonth(new Date().getMonth() + 1))
+    })
+    const [selectedDays, setSelectedDays] = useState<string[]>([])
+
+    // Modal State
+    const [modal, setModal] = useState<{
+        isOpen: boolean;
+        status: 'success' | 'error' | 'loading' | 'pending' | null;
+        message: string;
+        actionLabel?: string;
+        onAction?: () => void;
+        showDismiss?: boolean;
+    }>({
+        isOpen: false,
+        status: null,
+        message: "",
+        showDismiss: true
+    })
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -50,6 +96,104 @@ export default function CheckoutPage() {
         fetchPlan()
     }, [planId, isAuthenticated, router])
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0]
+            setScreenshot(file)
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setScreenshotPreview(reader.result as string)
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
+    const data = plan?.plan
+    const type = plan?.type
+    const cityName = plan?.cityName
+    const subtotal = data?.price || 0
+    const tax = subtotal * 0.1 // 10% tax for example
+    const total = subtotal + tax
+
+    const isDayOfWeekAvailable = (dayName: string) => {
+        if (!data?.availableDays) return true;
+        let availableDaysList: string[] = [];
+        try {
+            if (typeof data.availableDays === 'string' && data.availableDays.trim().startsWith('[')) {
+                availableDaysList = JSON.parse(data.availableDays);
+            } else if (Array.isArray(data.availableDays)) {
+                availableDaysList = data.availableDays;
+            } else {
+                availableDaysList = data.availableDays.split(',').map((d: string) => d.trim());
+            }
+        } catch (e) {
+            availableDaysList = data.availableDays.split(',').map((d: string) => d.trim());
+        }
+        return availableDaysList.includes(dayName);
+    };
+
+    // Helper to check if a day is available for this plan
+    const isDayAvailable = (date: Date) => {
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        return isDayOfWeekAvailable(dayName);
+    };
+
+    const displayAvailableDays = () => {
+        if (!data?.availableDays) return "All Days";
+        try {
+            if (typeof data.availableDays === 'string' && data.availableDays.trim().startsWith('[')) {
+                return JSON.parse(data.availableDays).join(', ');
+            } else if (Array.isArray(data.availableDays)) {
+                return data.availableDays.join(', ');
+            }
+        } catch (e) {}
+        return data.availableDays;
+    };
+
+    // Helper to parse TimeSpan string "09:00:00" to Date for min/max time
+    const parseTimeSpan = (timeStr: string | null | undefined, referenceDate: Date) => {
+        if (!timeStr) return null;
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return null;
+        const hours = parseInt(parts[0]);
+        const minutes = parseInt(parts[1]);
+        const date = new Date(referenceDate);
+        date.setHours(hours, minutes, 0, 0);
+        return date;
+    };
+
+    const minBookingTime = parseTimeSpan(data?.startTime, bookingTimes.from) || new Date(new Date().setHours(0, 0, 0, 0));
+    const maxBookingTime = parseTimeSpan(data?.endTime, bookingTimes.from) || new Date(new Date().setHours(23, 59, 59, 999));
+
+    // Effect to sync times when Full Day is toggled
+    useEffect(() => {
+        if (isFullDay && data?.startTime && data?.endTime) {
+            const start = parseTimeSpan(data.startTime, bookingTimes.from);
+            const end = parseTimeSpan(data.endTime, bookingTimes.from);
+            if (start && end) {
+                setBookingTimes({ from: start, to: end });
+            }
+        }
+    }, [isFullDay, data?.startTime, data?.endTime, bookingTimes.from.toDateString()]);
+
+    // Effect to auto-select first available date
+    useEffect(() => {
+        if (data && !isDayAvailable(bookingTimes.from)) {
+            let nextDate = new Date();
+            for (let i = 0; i < 7; i++) {
+                if (isDayAvailable(nextDate)) {
+                    const newFrom = new Date(nextDate);
+                    newFrom.setHours(bookingTimes.from.getHours(), bookingTimes.from.getMinutes());
+                    const newTo = new Date(nextDate);
+                    newTo.setHours(bookingTimes.to.getHours(), bookingTimes.to.getMinutes());
+                    setBookingTimes({ from: newFrom, to: newTo });
+                    break;
+                }
+                nextDate.setDate(nextDate.getDate() + 1);
+            }
+        }
+    }, [data]);
+
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-white">
@@ -68,34 +212,128 @@ export default function CheckoutPage() {
         )
     }
 
-    const { plan: data, type, cityName } = plan
-    const subtotal = data.price
-    const tax = subtotal * 0.1 // 10% tax for example
-    const total = subtotal + tax
-
     const handleConfirmBooking = async () => {
         if (!user || !plan) return
 
-        setProcessing(true)
-        try {
-            const res = await paymentApi.createCheckoutSession({
-                planId: planId!,
-                planType: type,
-                successUrl: `${window.location.origin}/checkout/success`,
-                cancelUrl: `${window.location.origin}/checkout/cancel`,
-                memberUserId: user.userId
-            })
+        if (paymentMethod === "BankTransfer") {
+            if (!bankDetails.accountTitle || !bankDetails.accountNumber || !bankDetails.ibanNumber || !bankDetails.bankName || !screenshot) {
+                setModal({
+                    isOpen: true,
+                    status: 'error',
+                    message: "Please fill in all bank transfer details and upload a payment screenshot."
+                })
+                return
+            }
+        }
 
-            if (res.data.success) {
-                const { checkoutUrl } = res.data.data
-                // Redirect to Stripe Checkout
-                window.location.href = checkoutUrl
-            } else {
-                alert(res.data.message)
+        setProcessing(true)
+        // Removed setModal loading to avoid "two popups" experience. 
+        // The button loader handles the processing feedback.
+
+        try {
+            if (type === 'Membership') {
+                const formData = new FormData()
+                formData.append("planId", planId!)
+                formData.append("memberUserId", user.userId)
+                formData.append("startDate", startDate.toISOString().split('T')[0])
+                formData.append("paymentMethod", paymentMethod)
+                
+                if (paymentMethod === "Stripe") {
+                    formData.append("successUrl", `${window.location.origin}/checkout/success`)
+                    formData.append("cancelUrl", `${window.location.origin}/checkout/cancel`)
+                } else {
+                    formData.append("accountTitle", bankDetails.accountTitle)
+                    formData.append("accountNumber", bankDetails.accountNumber)
+                    formData.append("ibanNumber", bankDetails.ibanNumber)
+                    formData.append("bankName", bankDetails.bankName)
+                    if (screenshot) {
+                        formData.append("paymentScreenshot", screenshot)
+                    }
+                }
+
+                const res = await membershipApi.purchase(formData)
+
+                if (res.data.success) {
+                    if (paymentMethod === "Stripe") {
+                        const { checkoutUrl } = res.data.data
+                        window.location.href = checkoutUrl
+                    } else {
+                        // Redirect directly to success page to avoid "double popup" experience
+                        router.push('/checkout/success?type=bank')
+                    }
+                } else {
+                    setModal({
+                        isOpen: true,
+                        status: 'error',
+                        message: res.data.message || "Something went wrong while processing your membership.",
+                        showDismiss: true
+                    })
+                }
+            } else if (type === 'Booking') {
+                const formData = new FormData()
+                formData.append("planId", planId!)
+                formData.append("memberUserId", user.userId)
+                formData.append("paymentMethod", paymentMethod)
+                
+                // Scheduling
+                formData.append("startTime", bookingTimes.from.toISOString())
+                formData.append("endTime", bookingTimes.to.toISOString())
+                formData.append("isFullDay", isFullDay.toString())
+
+                // Recurrence
+                formData.append("isRecurring", isRecurring.toString())
+                if (isRecurring) {
+                    formData.append("recurrenceInterval", recurrence.interval.toString())
+                    formData.append("recurrenceType", "Day")
+                    formData.append("endType", recurrence.endType)
+                    if (recurrence.endType === 'After') {
+                        formData.append("endAfterOccurrences", recurrence.endOccurrences.toString())
+                    } else if (recurrence.endType === 'On') {
+                        formData.append("recurrenceEndDate", recurrence.endDate.toISOString())
+                    }
+                    if (selectedDays.length > 0) {
+                        formData.append("selectedDays", selectedDays.join(","))
+                    }
+                }
+
+                if (paymentMethod === "Stripe") {
+                    formData.append("successUrl", `${window.location.origin}/checkout/success`)
+                    formData.append("cancelUrl", `${window.location.origin}/checkout/cancel`)
+                } else {
+                    formData.append("accountTitle", bankDetails.accountTitle)
+                    formData.append("accountNumber", bankDetails.accountNumber)
+                    formData.append("ibanNumber", bankDetails.ibanNumber)
+                    formData.append("bankName", bankDetails.bankName)
+                    if (screenshot) {
+                        formData.append("paymentScreenshot", screenshot)
+                    }
+                }
+
+                const res = await membershipApi.purchaseBooking(formData)
+
+                if (res.data.success) {
+                    if (paymentMethod === "Stripe") {
+                        const { checkoutUrl } = res.data.data
+                        window.location.href = checkoutUrl
+                    } else {
+                        router.push('/checkout/success?type=bank')
+                    }
+                } else {
+                    setModal({
+                        isOpen: true,
+                        status: 'error',
+                        message: res.data.message || "Something went wrong while processing your booking.",
+                        showDismiss: true
+                    })
+                }
             }
         } catch (error: any) {
-            console.error("Payment error:", error)
-            alert("Failed to initiate payment. Please try again.")
+            console.error("Purchase error:", error)
+            setModal({
+                isOpen: true,
+                status: 'error',
+                message: "An unexpected error occurred. Please check your internet connection and try again."
+            })
         } finally {
             setProcessing(false)
         }
@@ -109,9 +347,40 @@ export default function CheckoutPage() {
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Left Side: Information */}
                     <div className="flex-1 space-y-6">
+                        {/* 1. Start Date Selection - Only for Memberships */}
+                        {type === 'Membership' && (
+                            <motion.div 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
+                            >
+                                <h2 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+                                    <Calendar className="w-6 h-6 text-blue-600" />
+                                    Selection Details
+                                </h2>
+                                
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">When would you like to start?</label>
+                                    <div className="relative custom-datepicker">
+                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                                        <DatePicker
+                                            selected={startDate}
+                                            onChange={(date: Date | null) => date && setStartDate(date)}
+                                            minDate={new Date()}
+                                            dateFormat="MMMM d, yyyy"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-400 font-medium italic">* Your membership duration will start from this date.</p>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* 2. Personal Information */}
                         <motion.div 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.05 }}
                             className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
                         >
                             <h2 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-3">
@@ -158,15 +427,288 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="mt-8 flex items-start gap-3 p-4 rounded-xl bg-blue-50/50 border border-blue-100">
-                                <Info className="w-5 h-5 text-blue-600 shrink-0" />
-                                <p className="text-xs text-blue-600 font-bold leading-relaxed">
-                                    Please ensure your phone number is correct. We'll use it to send you booking confirmation and access codes.
-                                </p>
-                            </div>
                         </motion.div>
 
+                        {/* 2. Scheduling & Recurrence (Only for Booking) */}
+                        {type === 'Booking' && (
+                            <motion.div 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-8"
+                            >
+                                <h2 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+                                    <Clock className="w-6 h-6 text-blue-600" />
+                                    Scheduling & Recurrence
+                                </h2>
+
+                                <div className="space-y-8">
+                                    {/* Availability Info Box */}
+                                    <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 shadow-sm">
+                                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                                            <Building2 className="w-24 h-24 text-blue-600" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                                                    <Info className="w-4 h-4 text-white" />
+                                                </div>
+                                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Space Availability</h3>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {displayAvailableDays().split(',').map((day: string) => (
+                                                        <span key={day} className="px-3 py-1 rounded-full bg-white/80 border border-blue-200/50 text-[11px] font-bold text-blue-700 shadow-sm">
+                                                            {day.trim()}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <div className="flex items-center gap-4 text-xs font-bold text-blue-600/80">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Clock className="w-3.5 h-3.5" />
+                                                        {data?.startTime?.substring(0, 5)} - {data?.endTime?.substring(0, 5)}
+                                                    </div>
+                                                    <div className="w-1 h-1 rounded-full bg-blue-300" />
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                        {type} Plan
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Time Selection */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Booking Date*</label>
+                                            <div className="relative">
+                                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                                                <DatePicker
+                                                    selected={bookingTimes.from}
+                                                    onChange={(date) => {
+                                                        if (date) {
+                                                            const newFrom = new Date(date);
+                                                            newFrom.setHours(bookingTimes.from.getHours(), bookingTimes.from.getMinutes());
+                                                            const newTo = new Date(date);
+                                                            newTo.setHours(bookingTimes.to.getHours(), bookingTimes.to.getMinutes());
+                                                            setBookingTimes({ from: newFrom, to: newTo });
+                                                        }
+                                                    }}
+                                                    dateFormat="MMMM d, yyyy"
+                                                    minDate={new Date()}
+                                                    filterDate={isDayAvailable}
+                                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Start Time*</label>
+                                            <div className="relative">
+                                                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                                                <DatePicker
+                                                    selected={bookingTimes.from}
+                                                    onChange={(date) => setBookingTimes({ ...bookingTimes, from: date || new Date() })}
+                                                    showTimeSelect
+                                                    showTimeSelectOnly
+                                                    disabled={isFullDay}
+                                                    timeIntervals={15}
+                                                    timeCaption="Time"
+                                                    dateFormat="h:mm aa"
+                                                    minTime={minBookingTime}
+                                                    maxTime={maxBookingTime}
+                                                    className={`w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none ${isFullDay ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">End Time*</label>
+                                            <div className="relative">
+                                                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                                                <DatePicker
+                                                    selected={bookingTimes.to}
+                                                    onChange={(date) => setBookingTimes({ ...bookingTimes, to: date || new Date() })}
+                                                    showTimeSelect
+                                                    showTimeSelectOnly
+                                                    disabled={isFullDay}
+                                                    timeIntervals={15}
+                                                    timeCaption="Time"
+                                                    dateFormat="h:mm aa"
+                                                    minTime={minBookingTime}
+                                                    maxTime={maxBookingTime}
+                                                    className={`w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none ${isFullDay ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Full Day Toggle */}
+                                    <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
+                                                <Clock className="w-5 h-5 text-gray-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-900">Full Day Booking</p>
+                                                <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">Book for the entire working day</p>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsFullDay(!isFullDay)}
+                                            className={`w-12 h-6 rounded-full transition-all relative ${isFullDay ? 'bg-blue-600' : 'bg-gray-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isFullDay ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    {/* Recurrence Toggle */}
+                                    <div className="space-y-6">
+                                        <div 
+                                            onClick={() => setIsRecurring(!isRecurring)}
+                                            className="flex items-center gap-3 cursor-pointer group"
+                                        >
+                                            <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
+                                                isRecurring ? "bg-blue-600 border-blue-600" : "border-gray-200 group-hover:border-blue-400"
+                                            }`}>
+                                                {isRecurring && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700">Repeat this booking</span>
+                                        </div>
+
+                                        <AnimatePresence>
+                                            {isRecurring && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: "auto" }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 space-y-6">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Repeats every</label>
+                                                                <div className="flex items-center gap-3">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        min="1"
+                                                                        value={recurrence.interval}
+                                                                        onChange={(e) => setRecurrence({ ...recurrence, interval: parseInt(e.target.value) || 1 })}
+                                                                        className="w-20 px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-gray-500">Day(s)</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Ends</label>
+                                                                <select 
+                                                                    value={recurrence.endType}
+                                                                    onChange={(e) => setRecurrence({ ...recurrence, endType: e.target.value as any })}
+                                                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                                >
+                                                                    <option value="Never">Never</option>
+                                                                    <option value="After">After occurrences</option>
+                                                                    <option value="On">On specific date</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Specific Days (Optional)</label>
+                                                                {selectedDays.length > 0 && (
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => setSelectedDays([])}
+                                                                        className="text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:underline"
+                                                                    >
+                                                                        Clear All
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
+                                                                    const mapping: Record<string, string> = {
+                                                                        "Mon": "Monday",
+                                                                        "Tue": "Tuesday",
+                                                                        "Wed": "Wednesday",
+                                                                        "Thu": "Thursday",
+                                                                        "Fri": "Friday",
+                                                                        "Sat": "Saturday",
+                                                                        "Sun": "Sunday"
+                                                                    };
+                                                                    const fullDay = mapping[day];
+                                                                    const isSelected = selectedDays.includes(fullDay);
+                                                                    
+                                                                    // Check if this day is available in the plan
+                                                                    const isAvailableInPlan = isDayOfWeekAvailable(fullDay);
+                                                                    
+                                                                    if (!isAvailableInPlan) return null;
+
+                                                                    return (
+                                                                        <button
+                                                                            key={day}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                if (isSelected) {
+                                                                                    setSelectedDays(selectedDays.filter(d => d !== fullDay));
+                                                                                } else {
+                                                                                    setSelectedDays([...selectedDays, fullDay]);
+                                                                                }
+                                                                            }}
+                                                                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                                                                                isSelected 
+                                                                                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" 
+                                                                                : "bg-white border border-gray-100 text-gray-400 hover:border-blue-400"
+                                                                            }`}
+                                                                        >
+                                                                            {day}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            <p className="text-[10px] font-medium text-gray-400 leading-relaxed italic">
+                                                                * Leave empty to repeat every {recurrence.interval} day(s). Select specific days to limit bookings to those days only.
+                                                            </p>
+                                                        </div>
+
+                                                        {recurrence.endType === 'After' && (
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Number of occurrences</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min="1"
+                                                                    value={recurrence.endOccurrences}
+                                                                    onChange={(e) => setRecurrence({ ...recurrence, endOccurrences: parseInt(e.target.value) || 1 })}
+                                                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        {recurrence.endType === 'On' && (
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">End Date</label>
+                                                                <div className="relative">
+                                                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                                                                    <DatePicker
+                                                                        selected={recurrence.endDate}
+                                                                        onChange={(date) => setRecurrence({ ...recurrence, endDate: date || new Date() })}
+                                                                        dateFormat="MMMM d, yyyy"
+                                                                        minDate={bookingTimes.from}
+                                                                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* 3. Payment Method */}
                         <motion.div 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -178,18 +720,157 @@ export default function CheckoutPage() {
                                 Payment Method
                             </h2>
                             
-                            <div className="p-6 rounded-2xl border-2 border-blue-600 bg-blue-50/20 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-8 bg-white border border-gray-100 rounded flex items-center justify-center">
-                                        <span className="text-[8px] font-black text-blue-800 italic">STRIPE</span>
+                            <div className={`grid grid-cols-1 ${type === 'Membership' ? 'md:grid-cols-2' : ''} gap-4 mb-8`}>
+                                <button 
+                                    onClick={() => setPaymentMethod("Stripe")}
+                                    className={`p-6 rounded-2xl border-2 transition-all flex items-center justify-between ${
+                                        paymentMethod === "Stripe" 
+                                        ? "border-blue-600 bg-blue-50/20" 
+                                        : "border-gray-100 hover:border-gray-200"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-lg flex items-center justify-center">
+                                            <CreditCard className={`w-5 h-5 ${paymentMethod === "Stripe" ? "text-blue-600" : "text-gray-400"}`} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold text-gray-900">Online Payment</p>
+                                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">Credit Card / Stripe</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-900">Secure Payment Gateway</p>
-                                        <p className="text-xs font-medium text-gray-500">Pay via Credit Card or Digital Wallet</p>
-                                    </div>
-                                </div>
-                                <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                                    {paymentMethod === "Stripe" && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                                </button>
+
+                                {type === 'Membership' && (
+                                    <button 
+                                        onClick={() => setPaymentMethod("BankTransfer")}
+                                        className={`p-6 rounded-2xl border-2 transition-all flex items-center justify-between ${
+                                            paymentMethod === "BankTransfer" 
+                                            ? "border-blue-600 bg-blue-50/20" 
+                                            : "border-gray-100 hover:border-gray-200"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-lg flex items-center justify-center">
+                                                <Landmark className={`w-5 h-5 ${paymentMethod === "BankTransfer" ? "text-blue-600" : "text-gray-400"}`} />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-bold text-gray-900">Bank Transfer</p>
+                                                <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">Manual Verification</p>
+                                            </div>
+                                        </div>
+                                        {paymentMethod === "BankTransfer" && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                                    </button>
+                                )}
                             </div>
+
+                            <AnimatePresence mode="wait">
+                                {type === 'Membership' && paymentMethod === "BankTransfer" && (
+                                    <motion.div 
+                                        key="bank-form"
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 space-y-6">
+                                            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                                                <Info className="w-4 h-4 text-blue-600" />
+                                                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">Enter the details of the manual transfer you performed</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Account Title</label>
+                                                    <div className="relative">
+                                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                        <input 
+                                                            type="text" 
+                                                            value={bankDetails.accountTitle}
+                                                            onChange={(e) => setBankDetails({...bankDetails, accountTitle: e.target.value})}
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            placeholder="Account Holder Name"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Bank Name</label>
+                                                    <div className="relative">
+                                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                        <input 
+                                                            type="text" 
+                                                            value={bankDetails.bankName}
+                                                            onChange={(e) => setBankDetails({...bankDetails, bankName: e.target.value})}
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            placeholder="e.g. HBL, Standard Chartered"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Account Number</label>
+                                                    <div className="relative">
+                                                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                        <input 
+                                                            type="text" 
+                                                            value={bankDetails.accountNumber}
+                                                            onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            placeholder="Account Number"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">IBAN Number</label>
+                                                    <div className="relative">
+                                                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                        <input 
+                                                            type="text" 
+                                                            value={bankDetails.ibanNumber}
+                                                            onChange={(e) => setBankDetails({...bankDetails, ibanNumber: e.target.value})}
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            placeholder="PK00 XXXX XXXX XXXX"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Payment Proof (Screenshot)</label>
+                                                <div 
+                                                    onClick={() => document.getElementById('screenshot-upload')?.click()}
+                                                    className={`w-full border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
+                                                        screenshotPreview ? "border-green-400 bg-green-50/20" : "border-gray-200 hover:border-blue-400 hover:bg-blue-50/20"
+                                                    }`}
+                                                >
+                                                    <input 
+                                                        id="screenshot-upload"
+                                                        type="file" 
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={handleFileChange}
+                                                    />
+                                                    {screenshotPreview ? (
+                                                        <div className="relative w-full h-40 rounded-xl overflow-hidden shadow-md">
+                                                            <img src={screenshotPreview} alt="Preview" className="w-full h-full object-cover" />
+                                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                                <p className="text-white text-xs font-bold">Change Image</p>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                                                <Upload className="w-6 h-6 text-gray-400" />
+                                                            </div>
+                                                            <p className="text-sm font-bold text-gray-900">Upload Payment Screenshot</p>
+                                                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">PNG, JPG or PDF up to 5MB</p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </motion.div>
                     </div>
 
@@ -217,6 +898,47 @@ export default function CheckoutPage() {
                             </div>
 
                             <div className="space-y-4 mb-8">
+                                {type === 'Membership' && (
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-gray-500 font-bold">Start Date</span>
+                                        <span className="text-gray-900 font-extrabold">{startDate.toLocaleDateString()}</span>
+                                    </div>
+                                )}
+                                {type === 'Booking' && (
+                                    <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                        <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-gray-400 font-bold uppercase tracking-widest">Schedule</span>
+                                            <span className="text-gray-900 font-extrabold">
+                                                {bookingTimes.from.toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-gray-500 font-bold">From</span>
+                                            <span className="text-gray-900 font-extrabold">{bookingTimes.from.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-gray-500 font-bold">To</span>
+                                            <span className="text-gray-900 font-extrabold">{bookingTimes.to.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                        {isRecurring && (
+                                            <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
+                                                <div className="flex justify-between items-center text-[10px]">
+                                                    <span className="text-blue-600 font-bold uppercase tracking-widest">Recurrence</span>
+                                                    <span className="text-blue-900 font-extrabold">Every {recurrence.interval} Day(s)</span>
+                                                </div>
+                                                {selectedDays.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {selectedDays.map(day => (
+                                                            <span key={day} className="text-[8px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                                                {day.substring(0, 3)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500 font-bold">Subtotal</span>
                                     <span className="text-gray-900 font-extrabold">${subtotal.toFixed(2)}</span>
@@ -231,6 +953,15 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
 
+                            {type === 'Membership' && paymentMethod === "BankTransfer" && (
+                                <div className="mb-6 flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                                    <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
+                                    <p className="text-[10px] text-orange-600 font-bold leading-relaxed uppercase tracking-wide">
+                                        Note: Bank transfers require manual approval. Your plan will activate once the company confirms your payment.
+                                    </p>
+                                </div>
+                            )}
+
                             <button 
                                 onClick={handleConfirmBooking}
                                 disabled={processing}
@@ -240,7 +971,7 @@ export default function CheckoutPage() {
                                     <Loader2 className="w-5 h-5 animate-spin" />
                                 ) : (
                                     <>
-                                        Confirm & Pay <ArrowRight className="w-5 h-5" />
+                                        {paymentMethod === "Stripe" ? "Confirm & Pay Online" : "Submit Payment Proof"} <ArrowRight className="w-5 h-5" />
                                     </>
                                 )}
                             </button>
@@ -253,6 +984,50 @@ export default function CheckoutPage() {
                     </div>
                 </div>
             </div>
+
+            <StatusModal 
+                isOpen={modal.isOpen}
+                status={modal.status}
+                message={modal.message}
+                actionLabel={modal.actionLabel}
+                onAction={modal.onAction}
+                showDismiss={modal.showDismiss}
+                onClose={() => setModal({ ...modal, isOpen: false })}
+            />
+
+            <style jsx global>{`
+                .custom-datepicker .react-datepicker-wrapper {
+                    width: 100%;
+                }
+                .react-datepicker {
+                    border-radius: 20px !important;
+                    border: none !important;
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.1) !important;
+                    font-family: inherit !important;
+                    padding: 15px !important;
+                }
+                .react-datepicker__header {
+                    background: white !important;
+                    border: none !important;
+                }
+                .react-datepicker__day--selected {
+                    background-color: #2563eb !important;
+                    border-radius: 10px !important;
+                }
+                .react-datepicker__day:hover {
+                    border-radius: 10px !important;
+                }
+                .react-datepicker-popper {
+                    z-index: 9999 !important;
+                }
+                .react-datepicker__time-container {
+                    width: 100px !important;
+                }
+                .react-datepicker__time-box {
+                    width: 100% !important;
+                    border-radius: 0 20px 20px 0 !important;
+                }
+            `}</style>
         </main>
     )
 }

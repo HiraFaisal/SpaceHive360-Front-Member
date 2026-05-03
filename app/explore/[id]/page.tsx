@@ -12,13 +12,23 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
+import { ReviewsSection } from "@/components/explore/ReviewsSection"
+import { useTracker } from "@/hooks/useTracker"
+
 export default function WorkspaceDetailPage() {
     const { id } = useParams()
     const router = useRouter()
     const { isAuthenticated } = useAuth()
+    const { trackAction } = useTracker()
     const [plan, setPlan] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState("Overview")
+
+    useEffect(() => {
+        if (plan && plan.plan && plan.plan.recId) {
+            trackAction(plan.plan.recId, 'VIEW');
+        }
+    }, [plan, trackAction]);
 
     useEffect(() => {
         async function fetchDetail() {
@@ -108,7 +118,10 @@ export default function WorkspaceDetailPage() {
                         <button className="p-2.5 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
                             <Share2 className="w-4 h-4" />
                         </button>
-                        <button className="p-2.5 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
+                        <button 
+                            onClick={() => trackAction(data.recId, 'FAVORITE')}
+                            className="p-2.5 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+                        >
                             <Heart className="w-4 h-4" />
                         </button>
                     </div>
@@ -151,7 +164,7 @@ export default function WorkspaceDetailPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                     <div className="lg:col-span-8 space-y-10">
                         {/* Sub-nav tabs */}
-                        <div className="flex border-b border-gray-100 gap-8">
+                        <div className="flex border-b border-gray-200 gap-8">
                             {["Overview", "Amenities", "Reviews", "Location"].map(tab => (
                                 <button 
                                     key={tab}
@@ -172,47 +185,134 @@ export default function WorkspaceDetailPage() {
                         </div>
 
                         {/* Content Sections */}
-                        <div className="space-y-10">
-                            <section>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">The Work Experience</h3>
-                                <p className="text-gray-500 leading-relaxed text-sm">
-                                    {data.description || "Designed by award-winning architects, this workspace offers a unique blend of industrial heritage and modern luxury. Situated in a prime location, it provides a curated environment for visionaries and creative leaders."}
-                                </p>
-                            </section>
+                        <div className="space-y-10 min-h-[400px]">
+                            <AnimatePresence mode="wait">
+                                {activeTab === "Overview" && (
+                                    <motion.div
+                                        key="overview"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                        className="space-y-10"
+                                    >
+                                        <section>
+                                            <h3 className="text-lg font-bold text-gray-900 mb-4">The Work Experience</h3>
+                                            <p className="text-gray-500 leading-relaxed text-sm">
+                                                {data.description || "Designed by award-winning architects, this workspace offers a unique blend of industrial heritage and modern luxury. Situated in a prime location, it provides a curated environment for visionaries and creative leaders."}
+                                            </p>
+                                        </section>
 
-                            <section>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Why this space matches you</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {[
-                                        "Nearby your frequent transit routes.",
-                                        "Fits your preferred monthly workspace budget.",
-                                        "Matches your preference for premium architectural designs."
-                                    ].map((match, i) => (
-                                        <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                            <Zap className="w-4 h-4 text-blue-600 mt-0.5" />
-                                            <p className="text-xs font-bold text-gray-700">{match}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">What this space offers</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {features.length > 0 ? features.map((feat: string) => (
-                                        <div key={feat} className="flex items-center gap-3 p-3.5 rounded-xl border border-gray-100 hover:border-blue-100 transition-colors">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-blue-600">
-                                                <Check className="w-4 h-4" />
+                                        <section>
+                                            <h3 className="text-lg font-bold text-gray-900 mb-4">Why this space matches you</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {[
+                                                    "Nearby your frequent transit routes.",
+                                                    "Fits your preferred monthly workspace budget.",
+                                                    "Matches your preference for premium architectural designs."
+                                                ].map((match, i) => (
+                                                    <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                                                        <Zap className="w-4 h-4 text-blue-600 mt-0.5" />
+                                                        <p className="text-xs font-bold text-gray-700">{match}</p>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <span className="text-xs font-bold text-gray-900">{feat}</span>
-                                        </div>
-                                    )) : (
-                                        <div className="col-span-full py-8 text-center border border-dashed border-gray-100 rounded-xl">
-                                            <p className="text-xs text-gray-400 font-medium">Standard premium amenities included</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
+                                        </section>
+                                    </motion.div>
+                                )}
+
+                                {activeTab === "Amenities" && (
+                                    <motion.div
+                                        key="amenities"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                    >
+                                        <section>
+                                            <div className="flex items-center justify-between mb-8">
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-gray-900 mb-1">What this space offers</h3>
+                                                    <p className="text-xs text-gray-500 font-medium">Premium features included with your booking</p>
+                                                </div>
+                                                <div className="px-3 py-1 rounded-full bg-blue-50 text-[10px] font-bold text-blue-600 uppercase tracking-widest">
+                                                    {features.length} Amenities
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {features.length > 0 ? features.map((feat: string) => {
+                                                    const getIcon = (name: string) => {
+                                                        const n = name.toLowerCase();
+                                                        if (n.includes("wifi") || n.includes("internet")) return <Wifi className="w-4 h-4" />;
+                                                        if (n.includes("coffee") || n.includes("tea") || n.includes("refreshment") || n.includes("kitchen")) return <Coffee className="w-4 h-4" />;
+                                                        if (n.includes("shield") || n.includes("security") || n.includes("safe")) return <ShieldCheck className="w-4 h-4" />;
+                                                        if (n.includes("user") || n.includes("meeting") || n.includes("community") || n.includes("desk")) return <Users className="w-4 h-4" />;
+                                                        if (n.includes("clock") || n.includes("access") || n.includes("24/7")) return <Clock className="w-4 h-4" />;
+                                                        if (n.includes("zap") || n.includes("power") || n.includes("electricity") || n.includes("fast")) return <Zap className="w-4 h-4" />;
+                                                        return <Check className="w-4 h-4" />;
+                                                    };
+
+                                                    return (
+                                                        <motion.div 
+                                                            key={feat}
+                                                            whileHover={{ y: -2 }}
+                                                            className="flex items-center gap-4 p-4 rounded-2xl bg-white border-2 border-gray-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-600/5 transition-all group"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                                {getIcon(feat)}
+                                                            </div>
+                                                            <span className="text-[13px] font-bold text-gray-700 group-hover:text-gray-900 transition-colors">
+                                                                {feat}
+                                                            </span>
+                                                        </motion.div>
+                                                    )
+                                                }) : (
+                                                    <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-50 rounded-3xl">
+                                                        <Info className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+                                                        <p className="text-sm text-gray-400 font-bold uppercase tracking-widest">Premium essentials included</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </section>
+                                    </motion.div>
+                                )}
+
+                                {activeTab === "Reviews" && (
+                                    <motion.div
+                                        key="reviews"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                    >
+                                        <ReviewsSection 
+                                            planId={data.recId} 
+                                            planType={type} 
+                                            companyId={data.fkCompany}
+                                        />
+                                    </motion.div>
+                                )}
+
+                                {activeTab === "Location" && (
+                                    <motion.div
+                                        key="location"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                    >
+                                        <section>
+                                            <h3 className="text-lg font-bold text-gray-900 mb-4">Location</h3>
+                                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                                <div className="flex items-center gap-2 text-sm font-bold text-gray-900 mb-4">
+                                                    <MapPin className="w-4 h-4 text-blue-600" />
+                                                    {cityName}, {data.location || "Premium District"}
+                                                </div>
+                                                <div className="h-64 rounded-xl bg-gray-200 overflow-hidden flex items-center justify-center text-gray-400 font-bold text-xs uppercase tracking-widest">
+                                                    Map Integration Placeholder
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
 
@@ -248,6 +348,7 @@ export default function WorkspaceDetailPage() {
 
                                 <button 
                                     onClick={() => {
+                                        trackAction(data.recId, 'BOOK');
                                         const checkoutUrl = `/checkout?id=${data.recId}`;
                                         if (isAuthenticated) {
                                             router.push(checkoutUrl);

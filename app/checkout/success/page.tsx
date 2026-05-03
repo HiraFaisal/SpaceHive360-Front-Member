@@ -4,12 +4,13 @@ import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/home/Navbar"
 import { motion } from "framer-motion"
-import { CheckCircle2, ArrowRight, Download } from "lucide-react"
+import { CheckCircle2, ArrowRight, Download, Clock } from "lucide-react"
 
 export default function SuccessPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const bookingId = searchParams.get("booking_id")
+    const isBank = searchParams.get("type") === "bank"
 
     return (
         <main className="min-h-screen bg-[#F8FAFC] flex flex-col">
@@ -21,23 +22,42 @@ export default function SuccessPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     className="w-full max-w-lg bg-white rounded-3xl p-12 shadow-xl border border-gray-100 text-center"
                 >
-                    <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <CheckCircle2 className="w-12 h-12 text-green-500" />
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 ${
+                        isBank ? "bg-blue-50" : "bg-green-50"
+                    }`}>
+                        {isBank ? (
+                            <Clock className="w-12 h-12 text-blue-600" />
+                        ) : (
+                            <CheckCircle2 className="w-12 h-12 text-green-500" />
+                        )}
                     </div>
                     
-                    <h1 className="text-3xl font-black text-gray-900 mb-4">Payment Successful!</h1>
+                    <h1 className="text-3xl font-black text-gray-900 mb-4">
+                        {isBank ? "Proof Submitted!" : "Payment Successful!"}
+                    </h1>
                     <p className="text-gray-500 font-medium mb-10">
-                        Your booking has been confirmed. We've sent the receipt and access details to your email.
+                        {isBank 
+                            ? "We've received your payment proof. Our administrative team will verify the transaction and activate your membership shortly."
+                            : "Your booking has been confirmed. We've sent the receipt and access details to your email."
+                        }
                     </p>
 
                     <div className="bg-gray-50 rounded-2xl p-6 mb-10 text-left">
-                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                            <span className="text-xs font-bold text-gray-400 uppercase">Booking ID</span>
-                            <span className="text-sm font-bold text-gray-900">{bookingId?.slice(0, 8).toUpperCase()}...</span>
-                        </div>
+                        {bookingId && (
+                            <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+                                <span className="text-xs font-bold text-gray-400 uppercase">Reference ID</span>
+                                <span className="text-sm font-bold text-gray-900">{bookingId?.slice(0, 8).toUpperCase()}...</span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-gray-400 uppercase">Status</span>
-                            <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-black uppercase">Confirmed</span>
+                            <span className="text-xs font-bold text-gray-400 uppercase">Current Status</span>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                isBank 
+                                    ? "bg-blue-100 text-blue-600" 
+                                    : "bg-green-100 text-green-600"
+                            }`}>
+                                {isBank ? "Pending Verification" : "Confirmed"}
+                            </span>
                         </div>
                     </div>
 
@@ -51,7 +71,7 @@ export default function SuccessPage() {
                         <button 
                             className="py-4 rounded-xl bg-white border border-gray-200 text-gray-900 font-bold text-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                         >
-                            <Download className="w-4 h-4" /> Download Receipt
+                            <Download className="w-4 h-4" /> Save Receipt
                         </button>
                     </div>
                 </motion.div>

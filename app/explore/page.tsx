@@ -156,7 +156,7 @@ export default function ExplorePage() {
 
       <Navbar /> 
       
-      <div className="relative z-10 pt-24 lg:pt-36 pb-12 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative pt-24 lg:pt-36 pb-12 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         <Suspense fallback={<div>Loading...</div>}>
             <ExploreContent />
         </Suspense>

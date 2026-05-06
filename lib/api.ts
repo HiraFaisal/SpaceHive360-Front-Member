@@ -1,7 +1,9 @@
 import axios from 'axios';
-
-export const BACKEND_URL = 'http://localhost:5129';
-export const API_BASE_URL = `${BACKEND_URL}/api`;
+//test
+export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5129/api';
+export const API_BASE_URL = BACKEND_URL;
+export const AI_SERVICE_URL = 'http://localhost:8000';
+export const CHAT_AGENT_URL = 'http://localhost:8005';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,6 +25,11 @@ export const feedbackApi = {
   getRecentFeedback: (count: number = 5) => api.get<ApiResponse<any>>(`/Feedback/recent?count=${count}`),
 };
 
+export const aiApi = {
+  analyzeSentiment: (text: string) => axios.post(`${AI_SERVICE_URL}/analyze-sentiment`, { text }),
+  summarizeFeedback: (reviews: string[]) => axios.post(`${AI_SERVICE_URL}/summarize-feedback`, { reviews }),
+};
+
 export const authApi = {
   login: (data: any) => api.post<ApiResponse<any>>('/Auth/login', data),
   register: (data: any) => api.post<ApiResponse<any>>('/Auth/register', data),
@@ -37,6 +44,7 @@ export const paymentApi = {
     cancelUrl: string;
     memberUserId: string;
   }) => api.post<ApiResponse<any>>('/Payment/create-checkout-session', data),
+  verifyPayment: (sessionId: string) => api.get<ApiResponse<any>>(`/Payment/verify/${sessionId}`),
 };
 
 export const membershipApi = {
@@ -45,6 +53,9 @@ export const membershipApi = {
   }),
   purchaseBooking: (data: FormData) => api.post<ApiResponse<any>>('/Membership/purchase-booking', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getMyMemberships: (token: string) => api.get<ApiResponse<any[]>>('/Membership/my', {
+    headers: { Authorization: `Bearer ${token}` }
   }),
 };
 

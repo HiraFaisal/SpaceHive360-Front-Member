@@ -196,9 +196,9 @@ export function OnboardingWizard() {
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-3">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest ml-1">Min Budget ($)</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest ml-1">Min Budget (Rs.)</label>
                       <div className="relative">
-                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">Rs.</span>
                         <input 
                           type="number" 
                           value={formData.budgetMin}
@@ -208,9 +208,9 @@ export function OnboardingWizard() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest ml-1">Max Budget ($)</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest ml-1">Max Budget (Rs.)</label>
                       <div className="relative">
-                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">Rs.</span>
                         <input 
                           type="number" 
                           value={formData.budgetMax}
@@ -225,7 +225,7 @@ export function OnboardingWizard() {
                       <Zap className="w-5 h-5 text-primary" />
                     </div>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                      Most premium coworking spaces in urban centers range between <span className="text-primary font-bold">$200 - $450</span> per month.
+                      Most premium coworking spaces in urban centers range between <span className="text-primary font-bold">Rs. 200 - Rs. 450</span> per month.
                     </p>
                   </div>
                 </div>

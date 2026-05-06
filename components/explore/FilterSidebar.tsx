@@ -137,8 +137,8 @@ export function FilterSidebar({ resultCount }: { resultCount: number }) {
                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 hover:accent-blue-700 transition-all"
             />
             <div className="flex justify-between mt-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                <span>$0</span>
-                <span>$1,000+</span>
+                <span>Rs. 0</span>
+                <span>Rs. 1,000+</span>
             </div>
         </div>
       </div>

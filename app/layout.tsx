@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
+import ChatWidget from "@/components/WorkspaceAgent/ChatWidget";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -25,6 +26,7 @@ export default function RootLayout({
         <AuthProvider>
           <OnboardingProvider>
             {children}
+            <ChatWidget />
           </OnboardingProvider>
         </AuthProvider>
       </body>

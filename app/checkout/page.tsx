@@ -111,9 +111,6 @@ export default function CheckoutPage() {
     const data = plan?.plan
     const type = plan?.type
     const cityName = plan?.cityName
-    const subtotal = data?.price || 0
-    const tax = subtotal * 0.1 // 10% tax for example
-    const total = subtotal + tax
 
     const isDayOfWeekAvailable = (dayName: string) => {
         if (!data?.availableDays) return true;
@@ -176,23 +173,49 @@ export default function CheckoutPage() {
         }
     }, [isFullDay, data?.startTime, data?.endTime, bookingTimes.from.toDateString()]);
 
-    // Effect to auto-select first available date
-    useEffect(() => {
-        if (data && !isDayAvailable(bookingTimes.from)) {
-            let nextDate = new Date();
-            for (let i = 0; i < 7; i++) {
-                if (isDayAvailable(nextDate)) {
-                    const newFrom = new Date(nextDate);
-                    newFrom.setHours(bookingTimes.from.getHours(), bookingTimes.from.getMinutes());
-                    const newTo = new Date(nextDate);
-                    newTo.setHours(bookingTimes.to.getHours(), bookingTimes.to.getMinutes());
-                    setBookingTimes({ from: newFrom, to: newTo });
-                    break;
+    // New Simplified Pricing Calculation Logic
+    const calculatePricing = () => {
+        if (!data) return { subtotal: 0, tax: 0, total: 0, occurrences: 1, duration: 1 };
+        
+        let occurrencesCount = 1;
+        if (isRecurring) {
+            if (recurrence.endType === 'After') {
+                occurrencesCount = recurrence.endOccurrences;
+            } else if (recurrence.endType === 'On') {
+                // Calculate how many matching weekdays between start and end
+                const start = new Date(bookingTimes.from);
+                const end = new Date(recurrence.endDate);
+                const targetDay = start.getDay(); // 0 for Sunday, 1 for Monday...
+                
+                let count = 0;
+                let current = new Date(start);
+                // Simple loop to count matching weekdays
+                while (current <= end) {
+                    if (current.getDay() === targetDay) count++;
+                    current.setDate(current.getDate() + 1);
+                    if (count > 100) break; // Safety break
                 }
-                nextDate.setDate(nextDate.getDate() + 1);
+                occurrencesCount = Math.max(1, count);
             }
         }
-    }, [data]);
+
+        let duration = 1;
+        if (data.pricingType === 'per_hour' || data.pricingType === 'hourly') {
+            const diffMs = bookingTimes.to.getTime() - bookingTimes.from.getTime();
+            duration = Math.max(1, diffMs / (1000 * 60 * 60));
+        }
+
+        const basePrice = data.price || 0;
+        const subtotal = (basePrice * duration) * occurrencesCount;
+        const tax = subtotal * 0.1;
+        const total = subtotal + tax;
+
+        return { subtotal, tax, total, occurrences: occurrencesCount, duration };
+    };
+
+    const { subtotal, tax, total, occurrences, duration } = calculatePricing();
+
+    const selectedWeekday = bookingTimes.from.toLocaleDateString('en-US', { weekday: 'long' });
 
     if (loading) {
         return (
@@ -283,17 +306,17 @@ export default function CheckoutPage() {
                 // Recurrence
                 formData.append("isRecurring", isRecurring.toString())
                 if (isRecurring) {
-                    formData.append("recurrenceInterval", recurrence.interval.toString())
-                    formData.append("recurrenceType", "Day")
-                    formData.append("endType", recurrence.endType)
-                    if (recurrence.endType === 'After') {
-                        formData.append("endAfterOccurrences", recurrence.endOccurrences.toString())
-                    } else if (recurrence.endType === 'On') {
-                        formData.append("recurrenceEndDate", recurrence.endDate.toISOString())
-                    }
-                    if (selectedDays.length > 0) {
-                        formData.append("selectedDays", selectedDays.join(","))
-                    }
+                formData.append("recurrenceInterval", "1") // Weekly
+                formData.append("recurrenceType", "Week")
+                formData.append("endType", recurrence.endType)
+                formData.append("endAfterOccurrences", occurrences.toString())
+                if (recurrence.endType === 'On') {
+                    formData.append("recurrenceEndDate", recurrence.endDate.toISOString())
+                }
+                formData.append("selectedDays", selectedWeekday) // Single anchor day
+                
+                // Add calculated total
+                formData.append("totalAmount", total.toString())
                 }
 
                 if (paymentMethod === "Stripe") {
@@ -586,105 +609,41 @@ export default function CheckoutPage() {
                                                     <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 space-y-6">
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                             <div className="space-y-3">
-                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Repeats every</label>
-                                                                <div className="flex items-center gap-3">
-                                                                    <input 
-                                                                        type="number" 
-                                                                        min="1"
-                                                                        value={recurrence.interval}
-                                                                        onChange={(e) => setRecurrence({ ...recurrence, interval: parseInt(e.target.value) || 1 })}
-                                                                        className="w-20 px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-gray-500">Day(s)</span>
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Pattern</label>
+                                                                <div className="flex flex-col gap-1 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+                                                                    <span className="text-xs font-bold text-blue-700">Weekly on {selectedWeekday}s</span>
+                                                                    <span className="text-[10px] text-blue-600/60 font-medium">Derived from start date</span>
                                                                 </div>
                                                             </div>
                                                             <div className="space-y-3">
-                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Ends</label>
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Recurrence Limit</label>
                                                                 <select 
                                                                     value={recurrence.endType}
                                                                     onChange={(e) => setRecurrence({ ...recurrence, endType: e.target.value as any })}
                                                                     className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
                                                                 >
-                                                                    <option value="Never">Never</option>
-                                                                    <option value="After">After occurrences</option>
-                                                                    <option value="On">On specific date</option>
+                                                                    <option value="After">Number of occurrences</option>
+                                                                    <option value="On">Until specific date</option>
                                                                 </select>
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Specific Days (Optional)</label>
-                                                                {selectedDays.length > 0 && (
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => setSelectedDays([])}
-                                                                        className="text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:underline"
-                                                                    >
-                                                                        Clear All
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
-                                                                    const mapping: Record<string, string> = {
-                                                                        "Mon": "Monday",
-                                                                        "Tue": "Tuesday",
-                                                                        "Wed": "Wednesday",
-                                                                        "Thu": "Thursday",
-                                                                        "Fri": "Friday",
-                                                                        "Sat": "Saturday",
-                                                                        "Sun": "Sunday"
-                                                                    };
-                                                                    const fullDay = mapping[day];
-                                                                    const isSelected = selectedDays.includes(fullDay);
-                                                                    
-                                                                    // Check if this day is available in the plan
-                                                                    const isAvailableInPlan = isDayOfWeekAvailable(fullDay);
-                                                                    
-                                                                    if (!isAvailableInPlan) return null;
-
-                                                                    return (
-                                                                        <button
-                                                                            key={day}
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (isSelected) {
-                                                                                    setSelectedDays(selectedDays.filter(d => d !== fullDay));
-                                                                                } else {
-                                                                                    setSelectedDays([...selectedDays, fullDay]);
-                                                                                }
-                                                                            }}
-                                                                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                                                                                isSelected 
-                                                                                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" 
-                                                                                : "bg-white border border-gray-100 text-gray-400 hover:border-blue-400"
-                                                                            }`}
-                                                                        >
-                                                                            {day}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                            <p className="text-[10px] font-medium text-gray-400 leading-relaxed italic">
-                                                                * Leave empty to repeat every {recurrence.interval} day(s). Select specific days to limit bookings to those days only.
-                                                            </p>
-                                                        </div>
-
-                                                        {recurrence.endType === 'After' && (
+                                                        {recurrence.endType === 'After' ? (
                                                             <div className="space-y-3">
-                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Number of occurrences</label>
-                                                                <input 
-                                                                    type="number" 
-                                                                    min="1"
-                                                                    value={recurrence.endOccurrences}
-                                                                    onChange={(e) => setRecurrence({ ...recurrence, endOccurrences: parseInt(e.target.value) || 1 })}
-                                                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
-                                                                />
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">How many times?</label>
+                                                                <div className="relative">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        min="1"
+                                                                        max="52"
+                                                                        value={recurrence.endOccurrences}
+                                                                        onChange={(e) => setRecurrence({ ...recurrence, endOccurrences: parseInt(e.target.value) || 1 })}
+                                                                        className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                                    />
+                                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">Bookings</span>
+                                                                </div>
                                                             </div>
-                                                        )}
-
-                                                        {recurrence.endType === 'On' && (
+                                                        ) : (
                                                             <div className="space-y-3">
                                                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">End Date</label>
                                                                 <div className="relative">
@@ -692,8 +651,8 @@ export default function CheckoutPage() {
                                                                     <DatePicker
                                                                         selected={recurrence.endDate}
                                                                         onChange={(date) => setRecurrence({ ...recurrence, endDate: date || new Date() })}
-                                                                        dateFormat="MMMM d, yyyy"
                                                                         minDate={bookingTimes.from}
+                                                                        dateFormat="MMMM d, yyyy"
                                                                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none"
                                                                     />
                                                                 </div>
@@ -924,33 +883,37 @@ export default function CheckoutPage() {
                                             <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
                                                 <div className="flex justify-between items-center text-[10px]">
                                                     <span className="text-blue-600 font-bold uppercase tracking-widest">Recurrence</span>
-                                                    <span className="text-blue-900 font-extrabold">Every {recurrence.interval} Day(s)</span>
+                                                    <span className="text-blue-900 font-extrabold italic">Every {selectedWeekday}</span>
                                                 </div>
-                                                {selectedDays.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {selectedDays.map(day => (
-                                                            <span key={day} className="text-[8px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                                                {day.substring(0, 3)}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                <div className="flex justify-between items-center text-[10px]">
+                                                    <span className="text-gray-400 font-bold uppercase tracking-widest">Occurrences</span>
+                                                    <span className="text-gray-900 font-extrabold">{occurrences} Sessions</span>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
                                 )}
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500 font-bold">Subtotal</span>
-                                    <span className="text-gray-900 font-extrabold">${subtotal.toFixed(2)}</span>
+                                    <span className="text-gray-900 font-extrabold">Rs. {subtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500 font-bold">Service Fee (10%)</span>
-                                    <span className="text-gray-900 font-extrabold">${tax.toFixed(2)}</span>
+                                    <span className="text-gray-900 font-extrabold">Rs. {tax.toFixed(2)}</span>
                                 </div>
                                 <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
                                     <span className="text-base font-bold text-gray-900">Total Price</span>
-                                    <span className="text-2xl font-black text-gray-900">${total.toFixed(2)}</span>
+                                    <span className="text-2xl font-black text-gray-900">Rs. {total.toFixed(2)}</span>
                                 </div>
+                                
+                                {paymentMethod === "Stripe" && total < 150 && (
+                                    <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                                        <p className="text-[10px] text-red-600 font-bold leading-tight uppercase tracking-tight">
+                                            Stripe requires a minimum of Rs. 150. Please increase duration or choose a different plan.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             {type === 'Membership' && paymentMethod === "BankTransfer" && (
@@ -964,8 +927,12 @@ export default function CheckoutPage() {
 
                             <button 
                                 onClick={handleConfirmBooking}
-                                disabled={processing}
-                                className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30 active:scale-[0.98] flex items-center justify-center gap-2"
+                                disabled={processing || (paymentMethod === "Stripe" && total < 150)}
+                                className={`w-full py-4 rounded-xl font-bold text-sm transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 ${
+                                    (paymentMethod === "Stripe" && total < 150) 
+                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none" 
+                                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/30"
+                                }`}
                             >
                                 {processing ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />

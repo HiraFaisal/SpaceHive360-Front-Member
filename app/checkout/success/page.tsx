@@ -1,16 +1,35 @@
 "use client"
 
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/home/Navbar"
 import { motion } from "framer-motion"
-import { CheckCircle2, ArrowRight, Download, Clock } from "lucide-react"
+import { CheckCircle2, ArrowRight, Download, Clock, Loader2 } from "lucide-react"
+import { paymentApi } from "@/lib/api"
 
 export default function SuccessPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const bookingId = searchParams.get("booking_id")
+    const sessionId = searchParams.get("session_id")
     const isBank = searchParams.get("type") === "bank"
+    
+    const [verifying, setVerifying] = useState(!isBank && !!sessionId)
+
+    useEffect(() => {
+        if (sessionId && !isBank) {
+            const verify = async () => {
+                try {
+                    await paymentApi.verifyPayment(sessionId)
+                } catch (error) {
+                    console.error("Verification failed:", error)
+                } finally {
+                    setVerifying(false)
+                }
+            }
+            verify()
+        }
+    }, [sessionId, isBank])
 
     return (
         <main className="min-h-screen bg-[#F8FAFC] flex flex-col">
@@ -51,12 +70,14 @@ export default function SuccessPage() {
                         )}
                         <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-gray-400 uppercase">Current Status</span>
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 ${
                                 isBank 
                                     ? "bg-blue-100 text-blue-600" 
-                                    : "bg-green-100 text-green-600"
+                                    : verifying 
+                                        ? "bg-gray-100 text-gray-500"
+                                        : "bg-green-100 text-green-600"
                             }`}>
-                                {isBank ? "Pending Verification" : "Confirmed"}
+                                {isBank ? "Pending Verification" : verifying ? <><Loader2 className="w-3 h-3 animate-spin" /> Verifying</> : "Confirmed"}
                             </span>
                         </div>
                     </div>

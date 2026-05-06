@@ -30,18 +30,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData)
     setIsAuthenticated(true)
     localStorage.setItem('memberUser', JSON.stringify(userData))
+    if (userData.token) {
+      localStorage.setItem('token', userData.token)
+    }
   }
 
   const updateUser = (userData: any) => {
     const updatedUser = { ...user, ...userData }
     setUser(updatedUser)
     localStorage.setItem('memberUser', JSON.stringify(updatedUser))
+    if (userData.token) {
+      localStorage.setItem('token', userData.token)
+    }
   }
 
   const logout = () => {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('memberUser')
+    localStorage.removeItem('token')
     router.push('/')
   }
 

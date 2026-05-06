@@ -207,11 +207,11 @@ export default function BookingPage() {
                         </div>
                         <div className="flex justify-between text-gray-600 text-sm font-medium">
                             <span>Service Fee</span>
-                            <span>$15</span>
+                            <span>Rs. 15</span>
                         </div>
                         <div className="flex justify-between text-gray-600 text-sm font-medium">
                             <span>Taxes</span>
-                            <span>$12</span>
+                            <span>Rs. 12</span>
                         </div>
                     </div>
 

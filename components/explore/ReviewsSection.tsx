@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Star, MessageSquare, Send, Calendar, User, ChevronDown, ChevronUp, CheckCircle2, ThumbsUp, Flag, MoreVertical } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { feedbackApi } from "@/lib/api"
+import { feedbackApi, aiApi } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 
 interface ReviewsSectionProps {
@@ -51,13 +51,27 @@ export function ReviewsSection({ planId, planType, companyId }: ReviewsSectionPr
 
         setIsSubmitting(true)
         try {
+            // Call AI Sentiment Analysis directly from frontend
+            let sentiment = "neutral";
+            let score = 0.5;
+            
+            try {
+                const aiRes = await aiApi.analyzeSentiment(comment);
+                sentiment = aiRes.data.label;
+                score = aiRes.data.score;
+            } catch (aiError) {
+                console.error("AI Service failed, using defaults:", aiError);
+            }
+
             await feedbackApi.submitFeedback({
                 planBookingId: planType === "Booking" ? planId : null,
                 planMembershipId: planType === "Membership" ? planId : null,
                 rating,
                 comment,
                 userId: user?.userId,
-                companyId: companyId
+                companyId: companyId,
+                sentiment,
+                sentimentScore: score
             })
             setComment("")
             setRating(0)

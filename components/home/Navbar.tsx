@@ -29,7 +29,10 @@ export function Navbar() {
             <Link href="/explore" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
               Explore
             </Link>
-            {["Memberships", "Locations", "Solutions"].map((item) => (
+            <Link href="/memberships" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+              My Memberships
+            </Link>
+            {["Locations", "Solutions"].map((item) => (
               <a
                 key={item}
                 href="#"
@@ -98,7 +101,10 @@ export function Navbar() {
               <Link href="/explore" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
                 Explore
               </Link>
-              {["Memberships", "Locations", "Solutions"].map((item) => (
+              <Link href="/memberships" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                My Memberships
+              </Link>
+              {["Locations", "Solutions"].map((item) => (
                 <a
                   key={item}
                   href="#"

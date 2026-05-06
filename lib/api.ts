@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5129';
-export const API_BASE_URL = `${BACKEND_URL}/api`;
+export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5129/api';
+export const API_BASE_URL = BACKEND_URL;
 export const AI_SERVICE_URL = 'http://localhost:8000';
 export const CHAT_AGENT_URL = 'http://localhost:8005';
 

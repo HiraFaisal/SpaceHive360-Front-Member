@@ -1,5 +1,5 @@
 import axios from 'axios';
-
+//test
 export const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5129/api';
 export const API_BASE_URL = BACKEND_URL;
 export const AI_SERVICE_URL = 'http://localhost:8000';

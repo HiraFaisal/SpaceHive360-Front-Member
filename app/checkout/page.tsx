@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/home/Navbar"
 import { memberApi, authApi, paymentApi, membershipApi } from "@/lib/api"
@@ -17,7 +17,7 @@ import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import { StatusModal } from "@/components/ui/StatusModal"
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const planId = searchParams.get("id")
@@ -250,8 +250,6 @@ export default function CheckoutPage() {
         }
 
         setProcessing(true)
-        // Removed setModal loading to avoid "two popups" experience. 
-        // The button loader handles the processing feedback.
 
         try {
             if (type === 'Membership') {
@@ -281,7 +279,6 @@ export default function CheckoutPage() {
                         const { checkoutUrl } = res.data.data
                         window.location.href = checkoutUrl
                     } else {
-                        // Redirect directly to success page to avoid "double popup" experience
                         router.push('/checkout/success?type=bank')
                     }
                 } else {
@@ -298,25 +295,21 @@ export default function CheckoutPage() {
                 formData.append("memberUserId", user.userId)
                 formData.append("paymentMethod", paymentMethod)
                 
-                // Scheduling
                 formData.append("startTime", bookingTimes.from.toISOString())
                 formData.append("endTime", bookingTimes.to.toISOString())
                 formData.append("isFullDay", isFullDay.toString())
 
-                // Recurrence
                 formData.append("isRecurring", isRecurring.toString())
                 if (isRecurring) {
-                formData.append("recurrenceInterval", "1") // Weekly
-                formData.append("recurrenceType", "Week")
-                formData.append("endType", recurrence.endType)
-                formData.append("endAfterOccurrences", occurrences.toString())
-                if (recurrence.endType === 'On') {
-                    formData.append("recurrenceEndDate", recurrence.endDate.toISOString())
-                }
-                formData.append("selectedDays", selectedWeekday) // Single anchor day
-                
-                // Add calculated total
-                formData.append("totalAmount", total.toString())
+                    formData.append("recurrenceInterval", "1")
+                    formData.append("recurrenceType", "Week")
+                    formData.append("endType", recurrence.endType)
+                    formData.append("endAfterOccurrences", occurrences.toString())
+                    if (recurrence.endType === 'On') {
+                        formData.append("recurrenceEndDate", recurrence.endDate.toISOString())
+                    }
+                    formData.append("selectedDays", selectedWeekday)
+                    formData.append("totalAmount", total.toString())
                 }
 
                 if (paymentMethod === "Stripe") {
@@ -368,9 +361,7 @@ export default function CheckoutPage() {
             
             <div className="pt-24 lg:pt-32 pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Left Side: Information */}
                     <div className="flex-1 space-y-6">
-                        {/* 1. Start Date Selection - Only for Memberships */}
                         {type === 'Membership' && (
                             <motion.div 
                                 initial={{ opacity: 0, x: -20 }}
@@ -399,7 +390,6 @@ export default function CheckoutPage() {
                             </motion.div>
                         )}
 
-                        {/* 2. Personal Information */}
                         <motion.div 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -452,7 +442,6 @@ export default function CheckoutPage() {
                             </div>
                         </motion.div>
 
-                        {/* 2. Scheduling & Recurrence (Only for Booking) */}
                         {type === 'Booking' && (
                             <motion.div 
                                 initial={{ opacity: 0, x: -20 }}
@@ -466,7 +455,6 @@ export default function CheckoutPage() {
                                 </h2>
 
                                 <div className="space-y-8">
-                                    {/* Availability Info Box */}
                                     <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 shadow-sm">
                                         <div className="absolute top-0 right-0 p-4 opacity-10">
                                             <Building2 className="w-24 h-24 text-blue-600" />
@@ -501,7 +489,6 @@ export default function CheckoutPage() {
                                         </div>
                                     </div>
 
-                                    {/* Time Selection */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="space-y-3">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Booking Date*</label>
@@ -509,7 +496,7 @@ export default function CheckoutPage() {
                                                 <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                                                 <DatePicker
                                                     selected={bookingTimes.from}
-                                                    onChange={(date) => {
+                                                    onChange={(date: Date | null) => {
                                                         if (date) {
                                                             const newFrom = new Date(date);
                                                             newFrom.setHours(bookingTimes.from.getHours(), bookingTimes.from.getMinutes());
@@ -531,7 +518,7 @@ export default function CheckoutPage() {
                                                 <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                                                 <DatePicker
                                                     selected={bookingTimes.from}
-                                                    onChange={(date) => setBookingTimes({ ...bookingTimes, from: date || new Date() })}
+                                                    onChange={(date: Date | null) => setBookingTimes({ ...bookingTimes, from: date || new Date() })}
                                                     showTimeSelect
                                                     showTimeSelectOnly
                                                     disabled={isFullDay}
@@ -550,7 +537,7 @@ export default function CheckoutPage() {
                                                 <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                                                 <DatePicker
                                                     selected={bookingTimes.to}
-                                                    onChange={(date) => setBookingTimes({ ...bookingTimes, to: date || new Date() })}
+                                                    onChange={(date: Date | null) => setBookingTimes({ ...bookingTimes, to: date || new Date() })}
                                                     showTimeSelect
                                                     showTimeSelectOnly
                                                     disabled={isFullDay}
@@ -565,7 +552,6 @@ export default function CheckoutPage() {
                                         </div>
                                     </div>
 
-                                    {/* Full Day Toggle */}
                                     <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
@@ -584,7 +570,6 @@ export default function CheckoutPage() {
                                         </button>
                                     </div>
 
-                                    {/* Recurrence Toggle */}
                                     <div className="space-y-6">
                                         <div 
                                             onClick={() => setIsRecurring(!isRecurring)}
@@ -650,7 +635,7 @@ export default function CheckoutPage() {
                                                                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                                                                     <DatePicker
                                                                         selected={recurrence.endDate}
-                                                                        onChange={(date) => setRecurrence({ ...recurrence, endDate: date || new Date() })}
+                                                                        onChange={(date: Date | null) => setRecurrence({ ...recurrence, endDate: date || new Date() })}
                                                                         minDate={bookingTimes.from}
                                                                         dateFormat="MMMM d, yyyy"
                                                                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 focus:border-blue-600 transition-all outline-none"
@@ -667,7 +652,6 @@ export default function CheckoutPage() {
                             </motion.div>
                         )}
 
-                        {/* 3. Payment Method */}
                         <motion.div 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -760,7 +744,7 @@ export default function CheckoutPage() {
                                                             type="text" 
                                                             value={bankDetails.bankName}
                                                             onChange={(e) => setBankDetails({...bankDetails, bankName: e.target.value})}
-                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
                                                             placeholder="e.g. HBL, Standard Chartered"
                                                         />
                                                     </div>
@@ -773,7 +757,7 @@ export default function CheckoutPage() {
                                                             type="text" 
                                                             value={bankDetails.accountNumber}
                                                             onChange={(e) => setBankDetails({...bankDetails, accountNumber: e.target.value})}
-                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
                                                             placeholder="Account Number"
                                                         />
                                                     </div>
@@ -786,7 +770,7 @@ export default function CheckoutPage() {
                                                             type="text" 
                                                             value={bankDetails.ibanNumber}
                                                             onChange={(e) => setBankDetails({...bankDetails, ibanNumber: e.target.value})}
-                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
+                                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-gray-100 text-sm font-bold text-gray-900 outline-none focus:border-blue-600"
                                                             placeholder="PK00 XXXX XXXX XXXX"
                                                         />
                                                     </div>
@@ -798,30 +782,32 @@ export default function CheckoutPage() {
                                                 <div 
                                                     onClick={() => document.getElementById('screenshot-upload')?.click()}
                                                     className={`w-full border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-                                                        screenshotPreview ? "border-green-400 bg-green-50/20" : "border-gray-200 hover:border-blue-400 hover:bg-blue-50/20"
+                                                        screenshot ? "border-green-500 bg-green-50/30" : "border-gray-200 hover:border-blue-400 hover:bg-blue-50/30"
                                                     }`}
                                                 >
                                                     <input 
                                                         id="screenshot-upload"
                                                         type="file" 
+                                                        className="hidden" 
                                                         accept="image/*"
-                                                        className="hidden"
                                                         onChange={handleFileChange}
                                                     />
                                                     {screenshotPreview ? (
-                                                        <div className="relative w-full h-40 rounded-xl overflow-hidden shadow-md">
-                                                            <img src={screenshotPreview} alt="Preview" className="w-full h-full object-cover" />
-                                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                                                <p className="text-white text-xs font-bold">Change Image</p>
+                                                        <div className="relative group">
+                                                            <img src={screenshotPreview} alt="Preview" className="h-32 rounded-lg" />
+                                                            <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Upload className="w-6 h-6 text-white" />
                                                             </div>
                                                         </div>
                                                     ) : (
                                                         <>
-                                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                                                <Upload className="w-6 h-6 text-gray-400" />
+                                                            <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center">
+                                                                <Upload className="w-5 h-5 text-gray-400" />
                                                             </div>
-                                                            <p className="text-sm font-bold text-gray-900">Upload Payment Screenshot</p>
-                                                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">PNG, JPG or PDF up to 5MB</p>
+                                                            <div className="text-center">
+                                                                <p className="text-sm font-bold text-gray-900">Upload Transaction Screenshot</p>
+                                                                <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">Click or drag and drop image</p>
+                                                            </div>
                                                         </>
                                                     )}
                                                 </div>
@@ -833,121 +819,92 @@ export default function CheckoutPage() {
                         </motion.div>
                     </div>
 
-                    {/* Right Side: Summary */}
-                    <div className="w-full lg:w-[400px]">
-                        <motion.div 
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 sticky top-32"
-                        >
-                            <h2 className="text-lg font-bold text-gray-900 mb-6">Booking Summary</h2>
-                            
-                            <div className="flex gap-4 mb-6 pb-6 border-b border-gray-100">
-                                <div className="w-20 h-20 relative rounded-xl overflow-hidden shrink-0">
-                                    <ImageWithFallback src={null} alt={data.name} fill className="object-cover" />
-                                </div>
-                                <div className="flex-1">
-                                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{type} Plan</span>
-                                    <h3 className="text-sm font-bold text-gray-900 leading-tight mb-1">{data.name}</h3>
-                                    <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400">
-                                        <MapPin className="w-3 h-3" />
-                                        {cityName}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mb-8">
-                                {type === 'Membership' && (
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="text-gray-500 font-bold">Start Date</span>
-                                        <span className="text-gray-900 font-extrabold">{startDate.toLocaleDateString()}</span>
-                                    </div>
-                                )}
-                                {type === 'Booking' && (
-                                    <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                                        <div className="flex justify-between items-center text-[10px]">
-                                            <span className="text-gray-400 font-bold uppercase tracking-widest">Schedule</span>
-                                            <span className="text-gray-900 font-extrabold">
-                                                {bookingTimes.from.toLocaleDateString()}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="text-gray-500 font-bold">From</span>
-                                            <span className="text-gray-900 font-extrabold">{bookingTimes.from.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="text-gray-500 font-bold">To</span>
-                                            <span className="text-gray-900 font-extrabold">{bookingTimes.to.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                        </div>
-                                        {isRecurring && (
-                                            <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
-                                                <div className="flex justify-between items-center text-[10px]">
-                                                    <span className="text-blue-600 font-bold uppercase tracking-widest">Recurrence</span>
-                                                    <span className="text-blue-900 font-extrabold italic">Every {selectedWeekday}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center text-[10px]">
-                                                    <span className="text-gray-400 font-bold uppercase tracking-widest">Occurrences</span>
-                                                    <span className="text-gray-900 font-extrabold">{occurrences} Sessions</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-500 font-bold">Subtotal</span>
-                                    <span className="text-gray-900 font-extrabold">Rs. {subtotal.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-500 font-bold">Service Fee (10%)</span>
-                                    <span className="text-gray-900 font-extrabold">Rs. {tax.toFixed(2)}</span>
-                                </div>
-                                <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-                                    <span className="text-base font-bold text-gray-900">Total Price</span>
-                                    <span className="text-2xl font-black text-gray-900">Rs. {total.toFixed(2)}</span>
-                                </div>
-                                
-                                {paymentMethod === "Stripe" && total < 150 && (
-                                    <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
-                                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                                        <p className="text-[10px] text-red-600 font-bold leading-tight uppercase tracking-tight">
-                                            Stripe requires a minimum of Rs. 150. Please increase duration or choose a different plan.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {type === 'Membership' && paymentMethod === "BankTransfer" && (
-                                <div className="mb-6 flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                                    <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
-                                    <p className="text-[10px] text-orange-600 font-bold leading-relaxed uppercase tracking-wide">
-                                        Note: Bank transfers require manual approval. Your plan will activate once the company confirms your payment.
-                                    </p>
-                                </div>
-                            )}
-
-                            <button 
-                                onClick={handleConfirmBooking}
-                                disabled={processing || (paymentMethod === "Stripe" && total < 150)}
-                                className={`w-full py-4 rounded-xl font-bold text-sm transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 ${
-                                    (paymentMethod === "Stripe" && total < 150) 
-                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none" 
-                                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-600/30"
-                                }`}
+                    <div className="lg:w-[400px]">
+                        <div className="sticky top-24 lg:top-32 space-y-4">
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
                             >
-                                {processing ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <>
-                                        {paymentMethod === "Stripe" ? "Confirm & Pay Online" : "Submit Payment Proof"} <ArrowRight className="w-5 h-5" />
-                                    </>
-                                )}
-                            </button>
+                                <h3 className="text-xl font-bold text-gray-900 mb-8">Summary</h3>
 
-                            <div className="mt-6 flex items-center justify-center gap-2 text-gray-400">
-                                <ShieldCheck className="w-4 h-4 text-green-500" />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Secure SSL Encryption</span>
+                                <div className="flex gap-4 mb-8">
+                                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                        <ImageWithFallback 
+                                            src={data?.images?.[0] || ""} 
+                                            alt={data?.name || "Plan"} 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">{cityName}</p>
+                                        <h4 className="text-lg font-black text-gray-900 line-clamp-1">{data?.name}</h4>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">{type}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-8 border-t border-gray-50">
+                                    <div className="flex justify-between items-center text-sm font-bold">
+                                        <span className="text-gray-400 uppercase text-[10px] tracking-widest">
+                                            {data?.pricingType === 'per_hour' || data?.pricingType === 'hourly' 
+                                                ? `Rate (${duration} hours)` 
+                                                : 'Plan Rate'}
+                                        </span>
+                                        <span className="text-gray-900">Rs. {subtotal.toLocaleString()}</span>
+                                    </div>
+                                    
+                                    {isRecurring && (
+                                        <div className="flex justify-between items-center text-sm font-bold">
+                                            <span className="text-gray-400 uppercase text-[10px] tracking-widest">Occurrences</span>
+                                            <span className="text-blue-600">x {occurrences}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center text-sm font-bold">
+                                        <span className="text-gray-400 uppercase text-[10px] tracking-widest">Taxes (10%)</span>
+                                        <span className="text-gray-900">Rs. {tax.toLocaleString()}</span>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                                        <span className="text-sm font-black text-gray-900 uppercase">Total Amount</span>
+                                        <span className="text-2xl font-black text-gray-900 tracking-tighter">Rs. {total.toLocaleString()}</span>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={handleConfirmBooking}
+                                    disabled={processing}
+                                    className="w-full mt-8 py-4 rounded-2xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {processing ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Confirm & Pay <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
+                                </button>
+
+                                <div className="mt-6 flex items-center justify-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-green-500" />
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Secure Payment Processing</p>
+                                </div>
+                            </motion.div>
+
+                            <div className="bg-blue-600 rounded-3xl p-8 text-white relative overflow-hidden">
+                                <div className="absolute -right-4 -top-4 opacity-20">
+                                    <Info className="w-24 h-24 rotate-12" />
+                                </div>
+                                <div className="relative z-10">
+                                    <h4 className="font-bold mb-2">Need help?</h4>
+                                    <p className="text-xs text-blue-100 mb-6 leading-relaxed">Our support team is available 24/7 for your booking assistance.</p>
+                                    <button className="text-xs font-bold px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all">Contact Support</button>
+                                </div>
                             </div>
-                        </motion.div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -956,45 +913,24 @@ export default function CheckoutPage() {
                 isOpen={modal.isOpen}
                 status={modal.status}
                 message={modal.message}
+                onClose={() => setModal({ ...modal, isOpen: false })}
                 actionLabel={modal.actionLabel}
                 onAction={modal.onAction}
                 showDismiss={modal.showDismiss}
-                onClose={() => setModal({ ...modal, isOpen: false })}
             />
-
-            <style jsx global>{`
-                .custom-datepicker .react-datepicker-wrapper {
-                    width: 100%;
-                }
-                .react-datepicker {
-                    border-radius: 20px !important;
-                    border: none !important;
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.1) !important;
-                    font-family: inherit !important;
-                    padding: 15px !important;
-                }
-                .react-datepicker__header {
-                    background: white !important;
-                    border: none !important;
-                }
-                .react-datepicker__day--selected {
-                    background-color: #2563eb !important;
-                    border-radius: 10px !important;
-                }
-                .react-datepicker__day:hover {
-                    border-radius: 10px !important;
-                }
-                .react-datepicker-popper {
-                    z-index: 9999 !important;
-                }
-                .react-datepicker__time-container {
-                    width: 100px !important;
-                }
-                .react-datepicker__time-box {
-                    width: 100% !important;
-                    border-radius: 0 20px 20px 0 !important;
-                }
-            `}</style>
         </main>
+    )
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+                <div className="animate-spin w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full mb-4"></div>
+                <p className="text-gray-400 font-medium text-sm">Preparing checkout...</p>
+            </div>
+        }>
+            <CheckoutContent />
+        </Suspense>
     )
 }

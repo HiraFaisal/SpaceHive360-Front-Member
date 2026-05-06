@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/home/Navbar"
 import { authApi } from "@/lib/api"
@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext"
 import { motion } from "framer-motion"
 import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react"
 
-export default function LoginPage() {
+function LoginContent() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [loading, setLoading] = useState(false)
@@ -127,5 +127,17 @@ export default function LoginPage() {
                 </motion.div>
             </div>
         </main>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FAFC]">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     )
 }

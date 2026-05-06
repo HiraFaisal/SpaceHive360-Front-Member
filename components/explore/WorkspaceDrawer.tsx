@@ -10,6 +10,10 @@ import Link from "next/link"
 
 import { useTracker } from "@/hooks/useTracker"
 import { useEffect } from "react"
+interface WorkspaceDrawerProps {
+    workspace: Workspace
+    onClose: () => void
+}
 
 export function WorkspaceDrawer({ workspace, onClose }: WorkspaceDrawerProps) {
   const router = useRouter()

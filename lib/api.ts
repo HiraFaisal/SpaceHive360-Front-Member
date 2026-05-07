@@ -75,6 +75,17 @@ export const userActivityApi = {
   logBatch: (data: any[]) => api.post('/user-activity/batch', data),
 };
 
+export const communityApi = {
+  getPosts: (tag?: string, memberId?: string) => api.get('/Community/posts', { params: { tag, memberId } }),
+  createPost: (data: any) => api.post('/Community/posts', data),
+  likePost: (postId: string, memberId?: string) => api.post(`/Community/posts/${postId}/like`, null, { params: { memberId } }),
+  getComments: (postId: string) => api.get(`/Community/posts/${postId}/comments`),
+  addComment: (data: any, memberId?: string) => api.post('/Community/comments', data, { params: { memberId } }),
+  getStats: () => api.get('/Community/stats'),
+  getActiveMembers: () => api.get('/Community/active-members'),
+  getEvents: () => api.get('/Community/events'),
+};
+
 export interface ApiResponse<T> {
     success: boolean;
     message: string;

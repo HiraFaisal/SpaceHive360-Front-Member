@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { MessageSquare, Send, X, User, Bot, Sparkles, Loader2 } from 'lucide-react';
 import axios from 'axios';
+
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,6 +15,7 @@ interface Message {
 }
 
 const ChatWidget = () => {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -39,11 +43,20 @@ const ChatWidget = () => {
         messages: newMessages
       });
 
-      setMessages([...newMessages, { 
+      const assistantMessage: Message = { 
         role: 'assistant', 
         content: response.data.content,
         reasoning: response.data.reasoning 
-      }]);
+      };
+      
+      setMessages([...newMessages, assistantMessage]);
+
+      // Handle Actions (e.g. Redirect)
+      if (response.data.action === 'redirect' && response.data.action_data?.url) {
+        setTimeout(() => {
+          router.push(response.data.action_data.url);
+        }, 2000); // Give user time to read the confirmation message
+      }
     } catch (error) {
       console.error('Chat Error:', error);
       setMessages([...newMessages, { 
@@ -117,12 +130,14 @@ const ChatWidget = () => {
                       {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                     </div>
                     <div className="space-y-1">
-                      <div className={`p-3 rounded-2xl text-sm shadow-sm ${
+                      <div className={`p-3 rounded-2xl text-sm shadow-sm prose prose-sm max-w-none ${
                         msg.role === 'user' 
-                          ? 'bg-blue-600 text-white rounded-tr-none' 
-                          : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                          ? 'bg-blue-600 text-white rounded-tr-none prose-invert' 
+                          : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none prose-p:my-0 prose-ul:my-1 prose-li:my-0 assistant-bubble-content'
                       }`}>
-                        {msg.content}
+                        <ReactMarkdown>
+                          {msg.content}
+                        </ReactMarkdown>
                       </div>
                       {msg.reasoning && msg.role === 'assistant' && (
                          <div className="text-[10px] text-gray-400 italic px-1">

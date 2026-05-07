@@ -205,7 +205,8 @@ function CheckoutContent() {
             duration = Math.max(1, diffMs / (1000 * 60 * 60));
         }
 
-        const basePrice = data.price || 0;
+        const negotiatedPrice = searchParams.get("price");
+        const basePrice = negotiatedPrice ? parseFloat(negotiatedPrice) : (data.price || 0);
         const subtotal = (basePrice * duration) * occurrencesCount;
         const tax = subtotal * 0.1;
         const total = subtotal + tax;

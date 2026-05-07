@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { communityApi } from '@/lib/api.ts';
+import { communityApi } from '@/lib/api';
 import { motion } from 'framer-motion';
 
 export function ActiveMembers() {

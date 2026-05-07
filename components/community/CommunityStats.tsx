@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Users, UserCheck, MessageSquare, TrendingUp } from 'lucide-react';
-import { communityApi } from '@/lib/api.ts';
+import { communityApi } from '@/lib/api';
 
 export function CommunityStats() {
   const [stats, setStats] = useState<any>(null);

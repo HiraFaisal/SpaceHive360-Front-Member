@@ -10,6 +10,16 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
 
+  const getAdminUrl = () => {
+    if (typeof window !== 'undefined') {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      return isLocal ? "http://localhost:3002/register" : "https://spacehive360-admin.vercel.app/register";
+    }
+    return "http://localhost:3002/register";
+  }
+
+  const adminUrl = getAdminUrl();
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,21 +39,25 @@ export function Navbar() {
             <Link href="/explore" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
               Explore
             </Link>
-            <Link href="/memberships" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
-              My Memberships
+            {isAuthenticated && (
+              <>
+                <Link href="/memberships" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+                  My Memberships
+                </Link>
+                <Link href="/community" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+                  Community
+                </Link>
+              </>
+            )}
+            <Link href="/locations" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+              Locations
             </Link>
-            <Link href="/community" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
-              Community
+            <Link href="/about" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+              About Us
             </Link>
-            {["Locations", "Solutions"].map((item) => (
-              <a
-                key={item}
-                href="#"
-                className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]"
-              >
-                {item}
-              </a>
-            ))}
+            <Link href="/list-your-space" className="px-4 py-2 text-[10px] font-black text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all uppercase tracking-widest border border-blue-100">
+              List Your Space
+            </Link>
           </div>
 
           {/* Desktop Buttons */}
@@ -72,9 +86,9 @@ export function Navbar() {
                 <Link href="/login" className="px-6 py-2.5 text-[11px] font-black text-gray-600 hover:text-blue-600 uppercase tracking-widest transition-colors">
                   Sign In
                 </Link>
-                <Link href="/register" className="px-6 py-2.5 text-[11px] font-black text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 uppercase tracking-widest">
+                <a href={adminUrl} className="px-6 py-2.5 text-[11px] font-black text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 uppercase tracking-widest">
                   Get Started
-                </Link>
+                </a>
               </>
             )}
           </div>
@@ -104,21 +118,22 @@ export function Navbar() {
               <Link href="/explore" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
                 Explore
               </Link>
-              <Link href="/memberships" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
-                My Memberships
+              {isAuthenticated && (
+                <>
+                  <Link href="/memberships" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                    My Memberships
+                  </Link>
+                  <Link href="/community" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                    Community
+                  </Link>
+                </>
+              )}
+              <Link href="/locations" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                Locations
               </Link>
-              <Link href="/community" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
-                Community
+              <Link href="/about" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                About Us
               </Link>
-              {["Locations", "Solutions"].map((item) => (
-                <a
-                  key={item}
-                  href="#"
-                  className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]"
-                >
-                  {item}
-                </a>
-              ))}
               <div className="pt-4 flex flex-col gap-3">
                 {isAuthenticated ? (
                   <button 
@@ -132,9 +147,9 @@ export function Navbar() {
                     <Link href="/login" className="w-full px-4 py-3 text-sm font-black text-gray-700 border border-gray-100 rounded-xl hover:bg-gray-50 flex items-center justify-center uppercase tracking-widest">
                       Sign In
                     </Link>
-                    <Link href="/register" className="w-full px-4 py-3 text-sm font-black text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-xl shadow-blue-600/20 flex items-center justify-center uppercase tracking-widest">
+                    <a href={adminUrl} className="w-full px-4 py-3 text-sm font-black text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-xl shadow-blue-600/20 flex items-center justify-center uppercase tracking-widest">
                       Get Started
-                    </Link>
+                    </a>
                   </>
                 )}
               </div>

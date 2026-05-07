@@ -92,7 +92,7 @@ export function PremiumPlans() {
                     </span>
                   </div>
                   <div className="absolute bottom-5 left-5 z-20 text-white">
-                      <p className="text-2xl font-bold tracking-tight">${plan.price}/{plan.durationType || 'day'}</p>
+                      <p className="text-2xl font-bold tracking-tight">Rs {plan.price}/{plan.durationType || 'day'}</p>
                   </div>
                 </div>
 

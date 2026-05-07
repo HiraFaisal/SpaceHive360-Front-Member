@@ -77,7 +77,7 @@ export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; on
                 </div>
             </div>
             <div className="text-right">
-                <div className="text-xl font-extrabold text-blue-600">${workspace.price}</div>
+                <div className="text-xl font-extrabold text-blue-600">Rs {workspace.price}</div>
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{workspace.priceUnit}</div>
             </div>
         </div>

@@ -123,7 +123,7 @@ export function FilterSidebar({ resultCount }: { resultCount: number }) {
         <div className="flex justify-between items-center mb-4">
             <h4 className="font-bold text-gray-900 text-sm">Max Price</h4>
             <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">
-                ${priceRange}/day
+                Rs. {priceRange}/day
             </span>
         </div>
         <div className="px-1">

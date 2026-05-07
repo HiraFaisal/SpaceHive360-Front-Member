@@ -28,7 +28,7 @@ export function Footer() {
 
           {/* Links Columns */}
           {[
-            { header: "PLATFORM", links: ["Browse Spaces", "Pricing Plans", "Enterprise", "List your space"] },
+            { header: "PLATFORM", links: ["Browse Spaces", "Pricing Plans", "Locations", "List your space"] },
             { header: "COMPANY", links: ["About Us", "Our Mission", "Careers", "Blog"] },
             { header: "LEGAL", links: ["Privacy Policy", "Terms of Service", "Cookie Policy"] },
           ].map((col) => (
@@ -37,7 +37,7 @@ export function Footer() {
                 <ul className="space-y-4">
                     {col.links.map(link => (
                         <li key={link}>
-                            <a href="#" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">{link}</a>
+                            <Link href={link === "List your space" ? "/list-your-space" : link === "Locations" ? "/locations" : "#"} className="text-sm text-gray-500 hover:text-blue-600 transition-colors">{link}</Link>
                         </li>
                     ))}
                 </ul>

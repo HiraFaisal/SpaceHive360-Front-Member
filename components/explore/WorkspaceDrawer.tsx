@@ -77,7 +77,7 @@ export function WorkspaceDrawer({ workspace, onClose }: WorkspaceDrawerProps) {
                 <div>
                     <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Price</h3>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-gray-900">${workspace.price}</span>
+                        <span className="text-xl font-bold text-gray-900">Rs {workspace.price}</span>
                         <span className="text-xs font-medium text-gray-500">/{workspace.priceUnit}</span>
                     </div>
                 </div>

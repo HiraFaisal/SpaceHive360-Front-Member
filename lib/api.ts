@@ -16,6 +16,8 @@ export const memberApi = {
   getPlans: (params: { city?: string; category?: string }) => 
     api.get<ApiResponse<any>>('/MemberPortal/plans', { params }),
   getPlanById: (id: string) => api.get<ApiResponse<any>>(`/MemberPortal/plans/${id}`),
+  getLocations: () => api.get<ApiResponse<any[]>>('/MemberPortal/locations'),
+  getStats: () => api.get<ApiResponse<{ activeCompanies: number; totalLocations: number }>>('/MemberPortal/stats'),
 };
 
 export const feedbackApi = {

@@ -228,7 +228,7 @@ export default function MyMembershipsPage() {
                                                 <CreditCard className="w-4 h-4" />
                                                 <span className="text-xs uppercase tracking-wider font-bold">Amount</span>
                                             </div>
-                                            <span className="text-lg font-extrabold text-blue-600">${membership.amount}</span>
+                                            <span className="text-lg font-extrabold text-blue-600">Rs {membership.amount}</span>
                                         </div>
                                     </div>
 

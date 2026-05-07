@@ -7,9 +7,58 @@ import { CommunityStats } from '@/components/community/CommunityStats';
 import { ActiveMembers } from '@/components/community/ActiveMembers';
 import { UpcomingEvents } from '@/components/community/UpcomingEvents';
 import { motion } from 'framer-motion';
-import { Users, Sparkles, MessageSquare, Heart } from 'lucide-react';
+import { Users, Sparkles, MessageSquare, Heart, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 
 export default function CommunityPage() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-40 flex flex-col items-center justify-center text-center">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6"
+          >
+            <ShieldCheck className="w-10 h-10 text-primary" />
+          </motion.div>
+          <motion.h1 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-3xl font-black text-foreground mb-4 tracking-tight"
+          >
+            Join the Conversation
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-muted-foreground max-w-sm mb-8 leading-relaxed"
+          >
+            The SpaceHive community is an exclusive space for our members. Please sign in to engage with fellow professionals.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Link 
+              href="/login" 
+              className="px-8 py-3.5 bg-primary text-primary-foreground rounded-full font-black text-xs uppercase tracking-[0.15em] shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+            >
+              Sign In to Community
+            </Link>
+          </motion.div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

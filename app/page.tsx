@@ -2,6 +2,7 @@ import { Navbar } from "@/components/home/Navbar"
 import { Hero } from "@/components/home/Hero"
 import { CategoryGrid } from "@/components/home/CategoryGrid"
 import { PremiumPlans } from "@/components/home/PremiumPlans"
+import { LocationsSection } from "@/components/home/LocationsSection"
 import { ValueProps } from "@/components/home/ValueProps"
 import { Testimonials } from "@/components/home/Testimonials"
 import { CTA } from "@/components/home/CTA"
@@ -14,6 +15,7 @@ export default function Home() {
       <Hero />
       <CategoryGrid />
       <PremiumPlans />
+      <LocationsSection />
       <ValueProps />
       <Testimonials />
       <CTA />

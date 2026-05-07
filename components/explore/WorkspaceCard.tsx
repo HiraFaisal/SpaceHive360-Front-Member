@@ -3,11 +3,30 @@
 import { Heart, Star, MapPin, Wifi, Coffee, DoorClosed } from "lucide-react"
 import { Workspace } from "@/data/workspaces"
 import { motion } from "framer-motion"
+import ImageWithFallback from "@/components/ui/ImageWithFallback"
+
+import { useTracker } from "@/hooks/useTracker"
+import { useState } from "react"
 
 export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; onClick?: () => void }) {
+  const { trackAction } = useTracker();
+  const [isFavorited, setIsFavorited] = useState(false);
+
+  const handleCardClick = () => {
+    trackAction(workspace.id, 'CLICK');
+    if (onClick) onClick();
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newState = !isFavorited;
+    setIsFavorited(newState);
+    trackAction(workspace.id, 'FAVORITE');
+  };
+
   return (
     <motion.div 
-      onClick={onClick}
+      onClick={handleCardClick}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -15,10 +34,11 @@ export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; on
     >
       <div className="relative h-64 p-3 pb-0">
         <div className="w-full h-full rounded-[1.5rem] overflow-hidden relative">
-            <img 
+            <ImageWithFallback 
               src={workspace.image} 
               alt={workspace.title} 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+              fill
+              className="group-hover:scale-105 transition-transform duration-700" 
             />
             <div className="absolute inset-0 bg-black/5" />
         </div>
@@ -34,8 +54,15 @@ export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; on
         </div>
 
         {/* Favorite Button */}
-        <button className="absolute top-6 right-6 p-2.5 rounded-full bg-white/30 backdrop-blur-md hover:bg-white text-white hover:text-red-500 transition-all shadow-md active:scale-95">
-            <Heart className="w-5 h-5 fill-current/10 hover:fill-current" />
+        <button 
+            onClick={handleFavoriteClick}
+            className={`absolute top-6 right-6 p-2.5 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95 ${
+                isFavorited 
+                ? "bg-red-500 text-white" 
+                : "bg-white/30 text-white hover:bg-white hover:text-red-500"
+            }`}
+        >
+            <Heart className={`w-5 h-5 ${isFavorited ? "fill-current" : "fill-current/10"}`} />
         </button>
       </div>
 
@@ -50,7 +77,7 @@ export function WorkspaceCard({ workspace, onClick }: { workspace: Workspace; on
                 </div>
             </div>
             <div className="text-right">
-                <div className="text-xl font-extrabold text-blue-600">${workspace.price}</div>
+                <div className="text-xl font-extrabold text-blue-600">Rs {workspace.price}</div>
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{workspace.priceUnit}</div>
             </div>
         </div>

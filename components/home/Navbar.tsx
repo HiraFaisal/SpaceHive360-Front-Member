@@ -2,48 +2,95 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, X, ChevronDown } from "lucide-react"
+import { Menu, X, ChevronDown, LogOut, User as UserIcon } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { cn } from "@/lib/utils"
+import { useAuth } from "@/context/AuthContext"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const { user, isAuthenticated, logout } = useAuth()
+
+  const getAdminUrl = () => {
+    if (typeof window !== 'undefined') {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      return isLocal ? "http://localhost:3002/register" : "https://spacehive360-admin.vercel.app/register";
+    }
+    return "http://localhost:3002/register";
+  }
+
+  const adminUrl = getAdminUrl();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <div className="flex-shrink-0 flex items-center gap-2">
+          <Link href="/" className="flex-shrink-0 flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
               <div className="w-3 h-3 bg-white rounded-full" />
             </div>
             <span className="text-xl font-bold text-gray-900 tracking-tight">
               SpaceHive 360
             </span>
-          </div>
+          </Link>
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center space-x-8">
-            {["Browse", "Memberships", "Locations", "Solutions"].map((item) => (
-              <a
-                key={item}
-                href="#"
-                className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                {item}
-              </a>
-            ))}
+            <Link href="/explore" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+              Explore
+            </Link>
+            {isAuthenticated && (
+              <>
+                <Link href="/memberships" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+                  My Memberships
+                </Link>
+                <Link href="/community" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+                  Community
+                </Link>
+              </>
+            )}
+            <Link href="/locations" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+              Locations
+            </Link>
+            <Link href="/about" className="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors uppercase tracking-widest text-[10px]">
+              About Us
+            </Link>
+            <Link href="/list-your-space" className="px-4 py-2 text-[10px] font-black text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-all uppercase tracking-widest border border-blue-100">
+              List Your Space
+            </Link>
           </div>
 
           {/* Desktop Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
-              Login
-            </button>
-            <button className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20">
-              Sign Up
-            </button>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 border-2 border-blue-50">
+                    <UserIcon className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-gray-900 leading-none mb-0.5">{user?.fullName}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Member</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={logout}
+                  className="p-2.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login" className="px-6 py-2.5 text-[11px] font-black text-gray-600 hover:text-blue-600 uppercase tracking-widest transition-colors">
+                  Sign In
+                </Link>
+                <a href={adminUrl} className="px-6 py-2.5 text-[11px] font-black text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 uppercase tracking-widest">
+                  Get Started
+                </a>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -68,22 +115,43 @@ export function Navbar() {
             className="md:hidden bg-white border-b border-gray-100 overflow-hidden"
           >
             <div className="px-4 pt-4 pb-6 space-y-4">
-              {["Browse", "Memberships", "Locations", "Solutions"].map((item) => (
-                <a
-                  key={item}
-                  href="#"
-                  className="block text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md"
-                >
-                  {item}
-                </a>
-              ))}
+              <Link href="/explore" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                Explore
+              </Link>
+              {isAuthenticated && (
+                <>
+                  <Link href="/memberships" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                    My Memberships
+                  </Link>
+                  <Link href="/community" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                    Community
+                  </Link>
+                </>
+              )}
+              <Link href="/locations" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                Locations
+              </Link>
+              <Link href="/about" className="block text-sm font-bold text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md uppercase tracking-widest text-[11px]">
+                About Us
+              </Link>
               <div className="pt-4 flex flex-col gap-3">
-                <button className="w-full px-4 py-3 text-base font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50">
-                  Login
-                </button>
-                <button className="w-full px-4 py-3 text-base font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20">
-                  Sign Up
-                </button>
+                {isAuthenticated ? (
+                  <button 
+                    onClick={logout}
+                    className="w-full px-4 py-3 text-sm font-black text-red-600 bg-red-50 rounded-xl flex items-center justify-center gap-2 uppercase tracking-widest"
+                  >
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
+                ) : (
+                  <>
+                    <Link href="/login" className="w-full px-4 py-3 text-sm font-black text-gray-700 border border-gray-100 rounded-xl hover:bg-gray-50 flex items-center justify-center uppercase tracking-widest">
+                      Sign In
+                    </Link>
+                    <a href={adminUrl} className="w-full px-4 py-3 text-sm font-black text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-xl shadow-blue-600/20 flex items-center justify-center uppercase tracking-widest">
+                      Get Started
+                    </a>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
